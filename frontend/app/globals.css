@@ -7,8 +7,11 @@
   --foreground: #f0f0f0;
 }
 
+html,
 body {
+  overflow-x: hidden;
   background-color: var(--background);
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
 }

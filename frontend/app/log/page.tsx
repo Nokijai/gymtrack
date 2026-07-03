@@ -165,7 +165,7 @@ export default function LogPage() {
             <p className="text-gray-500 text-sm uppercase tracking-widest">Ready to train?</p>
             <button
               onClick={startWorkout}
-              className="bg-orange-500 hover:bg-orange-400 active:scale-95 text-white font-bold text-xl rounded-2xl px-14 py-5 transition-all shadow-xl shadow-orange-500/25"
+              className="w-full max-w-xs bg-orange-500 hover:bg-orange-400 active:scale-95 text-white font-bold text-xl rounded-2xl px-10 py-5 transition-all shadow-xl shadow-orange-500/25 min-h-[64px]"
             >
               🏋️ Start Workout
             </button>
@@ -196,77 +196,132 @@ export default function LogPage() {
     <AuthGuard>
       <div className="min-h-screen bg-gray-950 text-white">
         <Nav />
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <div className="max-w-2xl mx-auto px-4 py-6 md:py-8 space-y-6">
 
-          {/* Live Timer */}
+          {/* Live Timer — large and centered */}
           <div className="text-center py-4">
             <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">Workout Time</p>
-            <p className="text-6xl font-mono font-bold text-orange-400 tabular-nums leading-none">
+            <p className="text-5xl md:text-6xl font-mono font-bold text-orange-400 tabular-nums leading-none">
               {formatTime(elapsed)}
             </p>
           </div>
 
           {/* Exercise list */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-3">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 space-y-3">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold">🏋️ Exercises</h2>
               <button
                 type="button"
                 onClick={addRow}
-                className="text-orange-400 hover:text-orange-300 text-sm font-semibold transition-colors"
+                className="text-orange-400 hover:text-orange-300 text-sm font-semibold transition-colors min-h-[44px] px-2"
               >
                 + Add Exercise
               </button>
             </div>
 
-            {/* Column headers — only show when there are rows */}
+            {/* Column headers — only show on larger screens */}
             {exercises.length > 0 && (
-              <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 px-1">
-                <div className="col-span-4">Exercise</div>
+              <div className="hidden sm:grid grid-cols-12 gap-2 text-xs text-gray-500 px-1">
+                <div className="col-span-5">Exercise</div>
                 <div className="col-span-2 text-center">Sets</div>
                 <div className="col-span-2 text-center">Reps</div>
-                <div className="col-span-3 text-center">kg</div>
+                <div className="col-span-2 text-center">kg</div>
                 <div className="col-span-1" />
               </div>
             )}
 
             {exercises.map((ex, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                <input
-                  className="col-span-4 bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm"
-                  placeholder="Bench press"
-                  value={ex.name}
-                  onChange={(e) => updateRow(i, 'name', e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="col-span-2 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
-                  min="1"
-                  value={ex.sets}
-                  onChange={(e) => updateRow(i, 'sets', e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="col-span-2 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
-                  min="1"
-                  value={ex.reps}
-                  onChange={(e) => updateRow(i, 'reps', e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="col-span-3 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
-                  placeholder="BW"
-                  step="0.5"
-                  value={ex.weight_kg}
-                  onChange={(e) => updateRow(i, 'weight_kg', e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeRow(i)}
-                  className="col-span-1 text-gray-600 hover:text-red-400 text-center transition-colors text-lg"
-                >
-                  ✕
-                </button>
+              <div key={i} className="space-y-2 sm:space-y-0">
+                {/* Mobile layout: name full width, then numbers in a row */}
+                <div className="sm:hidden">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm min-h-[44px]"
+                      placeholder="Exercise name (e.g. Bench press)"
+                      value={ex.name}
+                      onChange={(e) => updateRow(i, 'name', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="text-gray-600 hover:text-red-400 text-xl min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors flex-shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-500 text-center mb-1">Sets</div>
+                      <input
+                        type="number"
+                        className="w-full bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center min-h-[44px]"
+                        min="1"
+                        value={ex.sets}
+                        onChange={(e) => updateRow(i, 'sets', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 text-center mb-1">Reps</div>
+                      <input
+                        type="number"
+                        className="w-full bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center min-h-[44px]"
+                        min="1"
+                        value={ex.reps}
+                        onChange={(e) => updateRow(i, 'reps', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 text-center mb-1">kg</div>
+                      <input
+                        type="number"
+                        className="w-full bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center min-h-[44px]"
+                        placeholder="BW"
+                        step="0.5"
+                        value={ex.weight_kg}
+                        onChange={(e) => updateRow(i, 'weight_kg', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop layout: single row grid */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 items-center">
+                  <input
+                    className="col-span-5 bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm"
+                    placeholder="Bench press"
+                    value={ex.name}
+                    onChange={(e) => updateRow(i, 'name', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="col-span-2 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
+                    min="1"
+                    value={ex.sets}
+                    onChange={(e) => updateRow(i, 'sets', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="col-span-2 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
+                    min="1"
+                    value={ex.reps}
+                    onChange={(e) => updateRow(i, 'reps', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="col-span-2 bg-gray-800 text-white rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:border-orange-500 text-sm text-center"
+                    placeholder="BW"
+                    step="0.5"
+                    value={ex.weight_kg}
+                    onChange={(e) => updateRow(i, 'weight_kg', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRow(i)}
+                    className="col-span-1 text-gray-600 hover:text-red-400 text-center transition-colors text-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -283,7 +338,7 @@ export default function LogPage() {
             </p>
           )}
 
-          {/* Hold-to-confirm Finish button */}
+          {/* Hold-to-confirm Finish button — full width, comfortable thumb reach */}
           <div className="relative select-none pb-4">
             <button
               disabled={phase === 'saving'}
@@ -292,7 +347,7 @@ export default function LogPage() {
               onMouseLeave={stopHold}
               onTouchStart={startHold}
               onTouchEnd={stopHold}
-              className={`w-full relative overflow-hidden rounded-2xl px-4 py-5 font-bold text-lg transition-all
+              className={`w-full relative overflow-hidden rounded-2xl px-4 py-5 font-bold text-lg transition-all min-h-[64px]
                 ${phase === 'saving'
                   ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   : isHolding

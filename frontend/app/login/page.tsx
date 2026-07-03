@@ -79,8 +79,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-sm shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4 py-8">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-xl">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🏋️</div>
           <h1 className="text-2xl font-bold text-white">GymTrack</h1>
@@ -92,7 +92,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode('signin')}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors min-h-[44px] ${
               mode === 'signin'
                 ? 'bg-orange-500 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -103,7 +103,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode('register')}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors min-h-[44px] ${
               mode === 'register'
                 ? 'bg-orange-500 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -116,7 +116,7 @@ export default function LoginPage() {
         {mode === 'signin' ? (
           <form onSubmit={handleSignIn} className="space-y-4">
             <input
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 text-base min-h-[48px]"
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -124,7 +124,7 @@ export default function LoginPage() {
             />
             <input
               type="password"
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 text-base min-h-[48px]"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -134,7 +134,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors"
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors min-h-[48px] text-base"
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
@@ -142,7 +142,7 @@ export default function LoginPage() {
         ) : (
           <form onSubmit={handleRegister} className="space-y-4">
             <input
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 text-base min-h-[48px]"
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -150,7 +150,7 @@ export default function LoginPage() {
             />
             <input
               type="password"
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 text-base min-h-[48px]"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -158,7 +158,7 @@ export default function LoginPage() {
             />
             <input
               type="password"
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 text-base min-h-[48px]"
               placeholder="Confirm Password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -168,7 +168,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors"
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors min-h-[48px] text-base"
             >
               {loading ? 'Creating account…' : 'Create Account'}
             </button>

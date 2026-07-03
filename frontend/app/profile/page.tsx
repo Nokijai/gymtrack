@@ -133,9 +133,9 @@ export default function ProfilePage() {
     <AuthGuard>
       <div className="min-h-screen bg-gray-950 text-white">
         <Nav />
-        <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-6">
 
-          {/* Avatar + badges */}
+          {/* Avatar + badges — centered on mobile */}
           <div className="flex flex-col items-center gap-3 py-4">
             {/* Clickable avatar — opens file picker */}
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -155,10 +155,10 @@ export default function ProfilePage() {
               className="hidden"
               onChange={handleAvatarChange}
             />
-            {uploadError && <p className="text-red-400 text-xs">{uploadError}</p>}
+            {uploadError && <p className="text-red-400 text-xs text-center">{uploadError}</p>}
             {uploadLoading && <p className="text-gray-400 text-xs">Uploading avatar…</p>}
 
-            <div className="text-2xl font-bold capitalize">{profile.username}</div>
+            <div className="text-xl md:text-2xl font-bold capitalize text-center">{profile.username}</div>
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <LevelBadge level={profile.level} size="md" />
               <XPBadge xp={profile.xp} size="md" />
@@ -171,8 +171,8 @@ export default function ProfilePage() {
             <div className="text-gray-500 text-xs">Member since {profile.member_since}</div>
           </div>
 
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Stats grid — 2-col on mobile, 3-col on md+ */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             <StatCard icon="⭐" label="Level" value={`${profile.level}`} />
             <StatCard icon="⚡" label="Total XP" value={`${profile.xp.toLocaleString()}`} highlight />
             <StatCard icon="🔥" label="Current Streak" value={`${profile.current_streak}d`} />
@@ -181,9 +181,9 @@ export default function ProfilePage() {
             <StatCard icon="⏱️" label="Total Time" value={`${totalHours}h`} />
           </div>
 
-          {/* Recent sessions */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Recent Sessions</h2>
+          {/* Recent sessions — card layout on mobile */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold mb-4">Recent Sessions</h2>
             {sessionsLoading ? (
               <div className="text-gray-400 text-sm">Loading…</div>
             ) : !sessions || sessions.length === 0 ? (
@@ -194,29 +194,29 @@ export default function ProfilePage() {
                   <div
                     key={s.id}
                     onClick={() => setSelectedSession(s.id)}
-                    className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 cursor-pointer hover:ring-1 hover:ring-orange-500 transition-all"
+                    className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 cursor-pointer hover:ring-1 hover:ring-orange-500 transition-all min-h-[44px]"
                   >
-                    <div>
-                      <div className="font-medium">{s.date}</div>
-                      <div className="text-gray-400 text-sm">
+                    <div className="min-w-0 flex-1 mr-2">
+                      <div className="font-medium text-sm">{s.date}</div>
+                      <div className="text-gray-400 text-xs truncate">
                         {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''}
                         {s.notes ? ` · ${s.notes}` : ''}
                       </div>
                     </div>
-                    <div className="text-orange-400 font-semibold text-sm">{s.duration_minutes} min</div>
+                    <div className="text-orange-400 font-semibold text-sm flex-shrink-0">{s.duration_minutes} min</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Change Password */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Change Password</h2>
-            <form onSubmit={handlePwSubmit} className="space-y-3 max-w-sm">
+          {/* Change Password — full width inputs on mobile */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold mb-4">Change Password</h2>
+            <form onSubmit={handlePwSubmit} className="space-y-3 w-full md:max-w-sm">
               <input
                 type="password"
-                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 min-h-[44px]"
                 placeholder="Current password"
                 value={pwForm.current}
                 onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))}
@@ -224,7 +224,7 @@ export default function ProfilePage() {
               />
               <input
                 type="password"
-                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 min-h-[44px]"
                 placeholder="New password"
                 value={pwForm.next}
                 onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))}
@@ -232,7 +232,7 @@ export default function ProfilePage() {
               />
               <input
                 type="password"
-                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500"
+                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-orange-500 min-h-[44px]"
                 placeholder="Confirm new password"
                 value={pwForm.confirm}
                 onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
@@ -243,7 +243,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={pwMutation.isPending}
-                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-6 py-2.5 transition-colors"
+                className="w-full md:w-auto bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg px-6 py-3 transition-colors min-h-[44px]"
               >
                 {pwMutation.isPending ? 'Updating…' : 'Update Password'}
               </button>
@@ -264,10 +264,10 @@ export default function ProfilePage() {
 
 function StatCard({ icon, label, value, highlight }: { icon: string; label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-2xl p-4 border ${highlight ? 'bg-yellow-950/40 border-yellow-700/50' : 'bg-gray-900 border-gray-800'}`}>
-      <div className="text-2xl mb-1">{icon}</div>
-      <div className={`text-2xl font-bold ${highlight ? 'text-yellow-400' : 'text-white'}`}>{value}</div>
-      <div className="text-gray-400 text-xs mt-1">{label}</div>
+    <div className={`rounded-2xl p-3 md:p-4 border ${highlight ? 'bg-yellow-950/40 border-yellow-700/50' : 'bg-gray-900 border-gray-800'}`}>
+      <div className="text-xl md:text-2xl mb-1">{icon}</div>
+      <div className={`text-xl md:text-2xl font-bold ${highlight ? 'text-yellow-400' : 'text-white'}`}>{value}</div>
+      <div className="text-gray-400 text-xs mt-1 leading-tight">{label}</div>
     </div>
   )
 }
