@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { clsx } from 'clsx'
 import XPBadge from './XPBadge'
+import Avatar from './Avatar'
 
 export default function Nav() {
   const pathname = usePathname()
@@ -47,6 +48,7 @@ export default function Nav() {
       <div className="flex items-center gap-3">
         {user && (
           <div className="flex items-center gap-2">
+            <Avatar username={user.username} size="sm" />
             <span className="text-orange-400 font-medium text-sm">{user.username}</span>
             <XPBadge xp={user.xp} />
           </div>

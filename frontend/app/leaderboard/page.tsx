@@ -4,6 +4,7 @@ import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
+import Avatar from '@/components/Avatar'
 import { useSSE } from '@/hooks/useSSE'
 import api from '@/lib/api'
 import type { LeaderboardEntry } from '@/lib/types'
@@ -45,6 +46,9 @@ export default function LeaderboardPage() {
             {byXP.map((u, i) => (
               <div key={u.id} className={`rounded-2xl p-5 border text-center ${i === 0 ? 'bg-yellow-950 border-yellow-700' : 'bg-gray-900 border-gray-800'}`}>
                 <div className="text-3xl mb-2">{MEDALS[i] ?? '🎖️'}</div>
+                <div className="flex justify-center mb-2">
+                  <Avatar username={u.username} size="md" />
+                </div>
                 <div className="font-bold text-lg capitalize">{u.username}</div>
                 <div className="my-1"><LevelBadge level={u.level} /></div>
                 <div className="my-1"><XPBadge xp={u.xp} /></div>
@@ -83,6 +87,7 @@ function RankTable({
           <div key={u.id} className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="text-lg">{MEDALS[i] ?? '🎖️'}</span>
+              <Avatar username={u.username} size="sm" />
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium capitalize">{u.username}</span>
                 <LevelBadge level={u.level} />

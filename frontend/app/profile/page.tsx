@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
+import Avatar from '@/components/Avatar'
 import api from '@/lib/api'
 
 interface ProfileData {
@@ -26,16 +27,6 @@ interface SessionRow {
   duration_minutes: number
   notes: string | null
   exercises: { id: number; name: string; sets: number; reps: number; weight_kg: number | null }[]
-}
-
-const AVATAR_COLORS = [
-  '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4'
-]
-
-function avatarColor(name: string) {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % AVATAR_COLORS.length
-  return AVATAR_COLORS[h]
 }
 
 export default function ProfilePage() {
@@ -93,7 +84,6 @@ export default function ProfilePage() {
   }
 
   const totalHours = (profile.total_minutes / 60).toFixed(1)
-  const color = avatarColor(profile.username)
 
   return (
     <AuthGuard>
@@ -103,12 +93,7 @@ export default function ProfilePage() {
 
           {/* Avatar + badges */}
           <div className="flex flex-col items-center gap-3 py-4">
-            <div
-              className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold shadow-lg"
-              style={{ background: color }}
-            >
-              {profile.username[0].toUpperCase()}
-            </div>
+            <Avatar username={profile.username} size="lg" />
             <div className="text-2xl font-bold capitalize">{profile.username}</div>
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <LevelBadge level={profile.level} size="md" />

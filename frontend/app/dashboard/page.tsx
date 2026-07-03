@@ -7,6 +7,7 @@ import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
+import Avatar from '@/components/Avatar'
 import { useSSE } from '@/hooks/useSSE'
 import api from '@/lib/api'
 import type { DashboardStats } from '@/lib/types'
@@ -39,11 +40,14 @@ export default function DashboardPage() {
         <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Hey, {user.username} 👋</h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <LevelBadge level={user.level} />
-                <XPBadge xp={user.xp} />
+            <div className="flex items-center gap-3">
+              <Avatar username={user.username} size="md" />
+              <div>
+                <h1 className="text-2xl font-bold">Hey, {user.username} 👋</h1>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <LevelBadge level={user.level} />
+                  <XPBadge xp={user.xp} />
+                </div>
               </div>
             </div>
           </div>
