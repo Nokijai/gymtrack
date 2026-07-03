@@ -49,6 +49,6 @@ jobs:
           script: |
             cd ~/gymtrack
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u nokijai --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker-compose pull
+            docker-compose up -d --remove-orphans
             docker image prune -f
