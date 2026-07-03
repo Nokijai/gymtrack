@@ -18,7 +18,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     if not bcrypt.checkpw(req.password.encode("utf-8"), user.hashed_password.encode("utf-8")):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.id})
+    token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token)
 
 

@@ -17,12 +17,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const form = new FormData()
-      form.append('username', username)
-      form.append('password', password)
-      const res = await api.post('/auth/login', form, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      })
+      const res = await api.post('/auth/login', { username, password })
       setToken(res.data.access_token)
       const me = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${res.data.access_token}` },
