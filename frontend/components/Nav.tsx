@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { clsx } from 'clsx'
+import XPBadge from './XPBadge'
 
 export default function Nav() {
   const pathname = usePathname()
@@ -18,6 +19,7 @@ export default function Nav() {
     { href: '/dashboard', label: '📊 Dashboard' },
     { href: '/log', label: '➕ Log Session' },
     { href: '/leaderboard', label: '🏆 Leaderboard' },
+    { href: '/profile', label: '👤 Profile' },
     ...(user?.is_admin ? [{ href: '/admin', label: '🛡️ Admin' }] : []),
   ]
 
@@ -44,9 +46,10 @@ export default function Nav() {
       </div>
       <div className="flex items-center gap-3">
         {user && (
-          <span className="text-gray-400 text-sm">
-            Lv.{user.level} <span className="text-orange-400 font-medium">{user.username}</span>
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-orange-400 font-medium text-sm">{user.username}</span>
+            <XPBadge xp={user.xp} />
+          </div>
         )}
         <button
           onClick={handleLogout}

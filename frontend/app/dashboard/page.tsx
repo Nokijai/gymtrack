@@ -1,15 +1,19 @@
 'use client'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
+import XPBadge from '@/components/XPBadge'
+import SessionDetailModal from '@/components/SessionDetailModal'
 import { useSSE } from '@/hooks/useSSE'
 import api from '@/lib/api'
 import type { DashboardStats } from '@/lib/types'
 
 export default function DashboardPage() {
   useSSE()
+  const [selectedSession, setSelectedSession] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
@@ -37,9 +41,9 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Hey, {user.username} 👋</h1>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <LevelBadge level={user.level} />
-                <span className="text-gray-400 text-sm">{user.xp} XP</span>
+                <XPBadge xp={user.xp} />
               </div>
             </div>
           </div>
@@ -69,7 +73,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* Recent sessions */}
+          {/* Recent sessions — clickable */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
             <h2 className="text-lg font-semibold mb-4">Recent Sessions</h2>
             {recent_sessions.length === 0 ? (
@@ -77,14 +81,21 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {recent_sessions.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+                  <div
+                    key={s.id}
+                    onClick={() => setSelectedSession(s.id)}
+                    className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 cursor-pointer hover:ring-1 hover:ring-orange-500 transition-all"
+                  >
                     <div>
                       <div className="font-medium">{s.date}</div>
                       <div className="text-gray-400 text-sm">
-                        {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''} · {s.notes ?? ''}
+                        {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''}{s.notes ? ` · ${s.notes}` : ''}
                       </div>
                     </div>
-                    <div className="text-orange-400 font-semibold">{s.duration_minutes} min</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-orange-400 font-semibold">{s.duration_minutes} min</div>
+                      <span className="text-gray-600 text-xs">›</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -92,6 +103,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Session detail modal */}
+      <SessionDetailModal
+        sessionId={selectedSession}
+        onClose={() => setSelectedSession(null)}
+      />
     </AuthGuard>
   )
 }

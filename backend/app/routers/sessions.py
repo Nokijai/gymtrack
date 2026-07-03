@@ -27,6 +27,45 @@ def list_sessions(
     return sessions
 
 
+@router.get("/{session_id}")
+def get_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = db.query(WorkoutSession).filter(
+        WorkoutSession.id == session_id,
+        WorkoutSession.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    exercises = db.query(Exercise).filter(Exercise.session_id == session.id).all()
+
+    # Calculate XP earned for this session
+    base_xp = session.duration_minutes
+    for e in exercises:
+        base_xp += e.sets * e.reps * 0.1
+    xp_earned = int(base_xp)
+
+    return {
+        "id": session.id,
+        "date": session.date,
+        "duration_minutes": session.duration_minutes,
+        "xp_earned": xp_earned,
+        "exercises": [
+            {
+                "id": e.id,
+                "name": e.name,
+                "sets": e.sets,
+                "reps": e.reps,
+                "weight_kg": e.weight_kg,
+            }
+            for e in exercises
+        ],
+    }
+
+
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     data: SessionCreate,

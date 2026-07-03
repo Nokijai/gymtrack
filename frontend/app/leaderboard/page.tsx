@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
+import XPBadge from '@/components/XPBadge'
 import { useSSE } from '@/hooks/useSSE'
 import api from '@/lib/api'
 import type { LeaderboardEntry } from '@/lib/types'
@@ -45,8 +46,8 @@ export default function LeaderboardPage() {
               <div key={u.id} className={`rounded-2xl p-5 border text-center ${i === 0 ? 'bg-yellow-950 border-yellow-700' : 'bg-gray-900 border-gray-800'}`}>
                 <div className="text-3xl mb-2">{MEDALS[i] ?? '🎖️'}</div>
                 <div className="font-bold text-lg capitalize">{u.username}</div>
-                <LevelBadge level={u.level} />
-                <div className="text-orange-400 font-semibold mt-2">{u.xp} XP</div>
+                <div className="my-1"><LevelBadge level={u.level} /></div>
+                <div className="my-1"><XPBadge xp={u.xp} /></div>
                 <div className="text-gray-400 text-xs mt-1 flex justify-center gap-3">
                   <span>🔥 {u.current_streak}d</span>
                   <span>🏆 {u.longest_streak}d</span>
@@ -82,9 +83,9 @@ function RankTable({
           <div key={u.id} className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="text-lg">{MEDALS[i] ?? '🎖️'}</span>
-              <div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium capitalize">{u.username}</span>
-                <span className="ml-2"><LevelBadge level={u.level} /></span>
+                <LevelBadge level={u.level} />
               </div>
             </div>
             <div className="flex items-center gap-4">

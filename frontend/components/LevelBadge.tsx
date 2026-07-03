@@ -1,23 +1,38 @@
-const LEVEL_COLORS: Record<number, string> = {
-  1: 'bg-gray-600 text-gray-200',
-  2: 'bg-green-700 text-green-100',
-  3: 'bg-blue-700 text-blue-100',
-  4: 'bg-purple-700 text-purple-100',
-  5: 'bg-orange-500 text-white',
+interface BadgeTier {
+  icon: string
+  label: string
+  bg: string
+  text: string
 }
 
-const LEVEL_NAMES: Record<number, string> = {
-  1: 'Rookie',
-  2: 'Grinder',
-  3: 'Beast',
-  4: 'Monster',
-  5: 'Legend',
+function getTier(level: number): BadgeTier {
+  if (level >= 20) return { icon: '👑', label: 'Legend', bg: '#a855f7', text: '#fff' }
+  if (level >= 15) return { icon: '💎', label: 'Diamond', bg: '#60a5fa', text: '#fff' }
+  if (level >= 10) return { icon: '🥇', label: 'Gold', bg: '#f59e0b', text: '#fff' }
+  if (level >= 5)  return { icon: '🥈', label: 'Silver', bg: '#9ca3af', text: '#fff' }
+  return             { icon: '🥉', label: 'Bronze', bg: '#cd7f32', text: '#fff' }
 }
 
-export default function LevelBadge({ level }: { level: number }) {
+export default function LevelBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'md' | 'lg' }) {
+  const tier = getTier(level)
+  const padding = size === 'lg' ? '0.4rem 1rem' : size === 'md' ? '0.3rem 0.75rem' : '0.2rem 0.5rem'
+  const fontSize = size === 'lg' ? '1rem' : size === 'md' ? '0.85rem' : '0.75rem'
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${LEVEL_COLORS[level] ?? LEVEL_COLORS[1]}`}>
-      Lv.{level} {LEVEL_NAMES[level] ?? 'Rookie'}
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        padding,
+        borderRadius: '9999px',
+        background: tier.bg,
+        color: tier.text,
+        fontSize,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {tier.icon} Lv.{level}
     </span>
   )
 }

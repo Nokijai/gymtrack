@@ -7,6 +7,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -23,6 +28,26 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProfileResponse(BaseModel):
+    username: str
+    xp: int
+    level: int
+    current_streak: int
+    longest_streak: int
+    total_sessions: int
+    total_minutes: int
+    member_since: str
+    is_admin: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ChangeMyPasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class ExerciseCreate(BaseModel):
@@ -56,6 +81,17 @@ class SessionResponse(BaseModel):
     date: str
     duration_minutes: int
     notes: Optional[str] = None
+    exercises: list[ExerciseResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class SessionDetailResponse(BaseModel):
+    id: int
+    date: str
+    duration_minutes: int
+    xp_earned: int
     exercises: list[ExerciseResponse] = []
 
     class Config:
