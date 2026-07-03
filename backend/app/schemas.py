@@ -19,6 +19,7 @@ class UserResponse(BaseModel):
     level: int
     current_streak: int
     longest_streak: int
+    is_admin: bool = False
 
     class Config:
         from_attributes = True

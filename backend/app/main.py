@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import auth, sessions, dashboard, leaderboard
+from app.routers import auth, sessions, dashboard, leaderboard, admin
 from app import sse
 
 app = FastAPI(title="GymTrack API", version="1.0.0")
@@ -20,6 +20,7 @@ app.include_router(sessions.router)
 app.include_router(dashboard.router)
 app.include_router(leaderboard.router)
 app.include_router(sse.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

@@ -18,6 +18,7 @@ export default function Nav() {
     { href: '/dashboard', label: '📊 Dashboard' },
     { href: '/log', label: '➕ Log Session' },
     { href: '/leaderboard', label: '🏆 Leaderboard' },
+    ...(user?.is_admin ? [{ href: '/admin', label: '🛡️ Admin' }] : []),
   ]
 
   return (

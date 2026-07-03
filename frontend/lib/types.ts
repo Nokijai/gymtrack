@@ -5,6 +5,7 @@ export interface User {
   level: number
   current_streak: number
   longest_streak: number
+  is_admin?: boolean
 }
 
 export interface Exercise {

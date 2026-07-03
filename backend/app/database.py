@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, event
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, event, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime
@@ -35,6 +36,7 @@ class User(Base):
     longest_streak = Column(Integer, default=0)
     last_workout_date = Column(String, nullable=True)  # YYYY-MM-DD
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    is_admin = Column(Boolean, default=False, nullable=False, server_default="0")
 
     sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
 
@@ -156,17 +158,30 @@ def recalculate_streak(db, user: User) -> None:
 def init_db():
     import bcrypt as _bcrypt
     Base.metadata.create_all(bind=engine)
+
+    # Migration: add is_admin column if it doesn't exist yet (SQLite-safe)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except OperationalError:
+            pass  # column already exists — safe to ignore
+
+        # Ensure noki is always admin
+        conn.execute(text("UPDATE users SET is_admin=1 WHERE username='noki'"))
+        conn.commit()
+
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
             users_data = [
-                ("dennis", "dennis123"),
-                ("cyrus", "cyrus123"),
-                ("noki", "noki123"),
+                ("dennis", "dennis123", False),
+                ("cyrus", "cyrus123", False),
+                ("noki", "noki123", True),
             ]
-            for username, password in users_data:
+            for username, password, is_admin in users_data:
                 hashed = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
-                db.add(User(username=username, hashed_password=hashed))
+                db.add(User(username=username, hashed_password=hashed, is_admin=is_admin))
             db.commit()
     finally:
         db.close()
