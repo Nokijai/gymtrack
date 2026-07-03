@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import Nav from '@/components/Nav'
@@ -15,40 +15,81 @@ interface ExerciseRow {
 
 const HOLD_DURATION = 5000 // 5 seconds
 
+type Phase = 'idle' | 'active' | 'saving' | 'saved'
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':')
+}
+
 export default function LogPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const today = new Date().toISOString().split('T')[0]
 
-  const [date, setDate] = useState(today)
-  const [duration, setDuration] = useState('')
-  const [notes, setNotes] = useState('')
-  const [exercises, setExercises] = useState<ExerciseRow[]>([
-    { name: '', sets: '3', reps: '10', weight_kg: '' },
-  ])
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [elapsed, setElapsed] = useState(0) // seconds
+  const startTimeRef = useRef<Date | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const [exercises, setExercises] = useState<ExerciseRow[]>([])
+  // Always-current ref so the hold-fire closure reads fresh exercises
+  const exercisesRef = useRef<ExerciseRow[]>([])
+  useEffect(() => {
+    exercisesRef.current = exercises
+  }, [exercises])
 
   // Hold-to-confirm state
   const [holdProgress, setHoldProgress] = useState(0) // 0–100
   const [isHolding, setIsHolding] = useState(false)
-  const holdStart = useRef<number | null>(null)
+  const holdStartRef = useRef<number | null>(null)
   const rafRef = useRef<number | null>(null)
   const didFire = useRef(false)
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (payload: object) => api.post('/sessions', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
-      router.push('/dashboard')
+      setPhase('saved')
+      setTimeout(() => router.push('/dashboard'), 1500)
+    },
+    onError: () => {
+      // Let user retry — go back to active state
+      setPhase('active')
     },
   })
 
+  function startWorkout() {
+    startTimeRef.current = new Date()
+    setElapsed(0)
+    setExercises([])
+    setPhase('active')
+    timerRef.current = setInterval(() => {
+      setElapsed((s) => s + 1)
+    }, 1000)
+  }
+
   function buildPayload() {
+    const stopTime = new Date()
+    const start = startTimeRef.current!
+    const duration_minutes = Math.max(
+      1,
+      Math.round((stopTime.getTime() - start.getTime()) / 60_000)
+    )
+    const date = start.toISOString().split('T')[0]
     return {
       date,
-      duration_minutes: parseInt(duration) || 1,
-      notes: notes || null,
-      exercises: exercises
+      duration_minutes,
+      exercises: exercisesRef.current
         .filter((ex) => ex.name.trim())
         .map((ex) => ({
           name: ex.name.trim(),
@@ -59,118 +100,135 @@ export default function LogPage() {
     }
   }
 
-  // Hold-to-confirm logic
-  const startHold = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault()
-    if (mutation.isPending) return
-    didFire.current = false
-    setIsHolding(true)
-    holdStart.current = Date.now()
+  // Hold-to-confirm — only on the Finish button
+  const startHold = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault()
+      if (phase !== 'active') return
+      didFire.current = false
+      setIsHolding(true)
+      holdStartRef.current = Date.now()
 
-    const tick = () => {
-      if (!holdStart.current) return
-      const elapsed = Date.now() - holdStart.current
-      const pct = Math.min((elapsed / HOLD_DURATION) * 100, 100)
-      setHoldProgress(pct)
-      if (pct < 100) {
-        rafRef.current = requestAnimationFrame(tick)
-      } else {
-        if (!didFire.current) {
-          didFire.current = true
-          mutation.mutate(buildPayload())
+      const tick = () => {
+        if (!holdStartRef.current) return
+        const ms = Date.now() - holdStartRef.current
+        const pct = Math.min((ms / HOLD_DURATION) * 100, 100)
+        setHoldProgress(pct)
+        if (pct < 100) {
+          rafRef.current = requestAnimationFrame(tick)
+        } else {
+          if (!didFire.current) {
+            didFire.current = true
+            if (timerRef.current) clearInterval(timerRef.current)
+            setPhase('saving')
+            mutation.mutate(buildPayload())
+          }
         }
       }
-    }
-    rafRef.current = requestAnimationFrame(tick)
-  }, [mutation, date, duration, notes, exercises])
+      rafRef.current = requestAnimationFrame(tick)
+    },
+    [phase] // mutation.mutate is stable; exercises read via exercisesRef
+  )
 
   const stopHold = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    holdStart.current = null
+    holdStartRef.current = null
     setIsHolding(false)
     setHoldProgress(0)
   }, [])
 
   function addRow() {
-    setExercises([...exercises, { name: '', sets: '3', reps: '10', weight_kg: '' }])
+    setExercises((prev) => [...prev, { name: '', sets: '3', reps: '10', weight_kg: '' }])
   }
 
   function updateRow(i: number, field: keyof ExerciseRow, value: string) {
-    const next = [...exercises]
-    next[i] = { ...next[i], [field]: value }
-    setExercises(next)
+    setExercises((prev) => {
+      const next = [...prev]
+      next[i] = { ...next[i], [field]: value }
+      return next
+    })
   }
 
   function removeRow(i: number) {
-    setExercises(exercises.filter((_, idx) => idx !== i))
+    setExercises((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  const filledExercises = exercises.filter((e) => e.name.trim()).length
-  const isReady = filledExercises > 0 && duration
+  const holdCountdown = Math.ceil(((100 - holdProgress) / 100) * (HOLD_DURATION / 1000))
 
+  // ── State 1: Idle ─────────────────────────────────────────────────────
+  if (phase === 'idle') {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+          <Nav />
+          <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6">
+            <p className="text-gray-500 text-sm uppercase tracking-widest">Ready to train?</p>
+            <button
+              onClick={startWorkout}
+              className="bg-orange-500 hover:bg-orange-400 active:scale-95 text-white font-bold text-xl rounded-2xl px-14 py-5 transition-all shadow-xl shadow-orange-500/25"
+            >
+              🏋️ Start Workout
+            </button>
+          </div>
+        </div>
+      </AuthGuard>
+    )
+  }
+
+  // ── State 3b: Saved ───────────────────────────────────────────────────
+  if (phase === 'saved') {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+          <Nav />
+          <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <span className="text-6xl">💪</span>
+            <p className="text-3xl font-bold text-green-400">Saved!</p>
+            <p className="text-gray-500 text-sm">Redirecting to dashboard…</p>
+          </div>
+        </div>
+      </AuthGuard>
+    )
+  }
+
+  // ── State 2: Active  /  State 3a: Saving ─────────────────────────────
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-950 text-white">
         <Nav />
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-          <h1 className="text-2xl font-bold">➕ Log Session</h1>
 
-          {/* Date + Duration */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-400 block mb-1">Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-gray-400 block mb-1">Duration (min)</label>
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="60"
-                  min="1"
-                  className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 block mb-1">Notes (optional)</label>
-              <input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Chest day, felt strong..."
-                className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-orange-500"
-              />
-            </div>
+          {/* Live Timer */}
+          <div className="text-center py-4">
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">Workout Time</p>
+            <p className="text-6xl font-mono font-bold text-orange-400 tabular-nums leading-none">
+              {formatTime(elapsed)}
+            </p>
           </div>
 
-          {/* Exercise record */}
+          {/* Exercise list */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold">🏋️ Exercise Record</h2>
+              <h2 className="font-semibold">🏋️ Exercises</h2>
               <button
                 type="button"
                 onClick={addRow}
-                className="text-orange-400 hover:text-orange-300 text-sm font-medium"
+                className="text-orange-400 hover:text-orange-300 text-sm font-semibold transition-colors"
               >
                 + Add Exercise
               </button>
             </div>
 
-            {/* Column headers */}
-            <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 px-1">
-              <div className="col-span-4">Exercise</div>
-              <div className="col-span-2 text-center">Sets</div>
-              <div className="col-span-2 text-center">Reps</div>
-              <div className="col-span-3 text-center">kg</div>
-              <div className="col-span-1" />
-            </div>
+            {/* Column headers — only show when there are rows */}
+            {exercises.length > 0 && (
+              <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 px-1">
+                <div className="col-span-4">Exercise</div>
+                <div className="col-span-2 text-center">Sets</div>
+                <div className="col-span-2 text-center">Reps</div>
+                <div className="col-span-3 text-center">kg</div>
+                <div className="col-span-1" />
+              </div>
+            )}
 
             {exercises.map((ex, i) => (
               <div key={i} className="grid grid-cols-12 gap-2 items-center">
@@ -213,63 +271,54 @@ export default function LogPage() {
             ))}
 
             {exercises.length === 0 && (
-              <p className="text-gray-600 text-sm text-center py-2">
+              <p className="text-gray-600 text-sm text-center py-4">
                 No exercises yet — tap + Add Exercise
               </p>
             )}
           </div>
 
-          {/* Summary */}
-          {filledExercises > 0 && duration && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-3 flex gap-6 text-sm">
-              <span className="text-gray-400">📋 <span className="text-white font-medium">{filledExercises}</span> exercises</span>
-              <span className="text-gray-400">⏱ <span className="text-white font-medium">{duration}</span> min</span>
-              <span className="text-gray-400">📅 <span className="text-white font-medium">{date}</span></span>
-            </div>
-          )}
-
           {mutation.isError && (
-            <p className="text-red-400 text-sm">Failed to save. Please try again.</p>
+            <p className="text-red-400 text-sm text-center">
+              Failed to save. Please try again.
+            </p>
           )}
 
-          {/* Hold-to-confirm button */}
-          <div className="relative select-none">
+          {/* Hold-to-confirm Finish button */}
+          <div className="relative select-none pb-4">
             <button
-              disabled={!isReady || mutation.isPending}
+              disabled={phase === 'saving'}
               onMouseDown={startHold}
               onMouseUp={stopHold}
               onMouseLeave={stopHold}
               onTouchStart={startHold}
               onTouchEnd={stopHold}
               className={`w-full relative overflow-hidden rounded-2xl px-4 py-5 font-bold text-lg transition-all
-                ${!isReady || mutation.isPending
-                  ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                ${phase === 'saving'
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   : isHolding
-                  ? 'bg-orange-600 text-white cursor-grabbing'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
+                  ? 'bg-green-700 text-white cursor-grabbing'
+                  : 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
                 }`}
             >
-              {/* Progress fill */}
+              {/* Green progress sweep */}
               {isHolding && (
                 <span
-                  className="absolute inset-0 bg-green-500 transition-none origin-left"
-                  style={{ transform: `scaleX(${holdProgress / 100})`, opacity: 0.35 }}
+                  className="absolute inset-0 bg-green-400 origin-left transition-none"
+                  style={{ transform: `scaleX(${holdProgress / 100})`, opacity: 0.45 }}
                 />
               )}
               <span className="relative z-10">
-                {mutation.isPending
-                  ? '💾 Saving...'
+                {phase === 'saving'
+                  ? '💾 Saving…'
                   : isHolding
-                  ? `Hold... ${Math.ceil((HOLD_DURATION - (holdProgress / 100) * HOLD_DURATION) / 1000)}s`
-                  : !isReady
-                  ? 'Add exercises + duration first'
-                  : '🔒 Hold 5s to Log Session'}
+                  ? `${holdCountdown}s…`
+                  : '🏁 Finish Workout'}
               </span>
             </button>
 
-            {!isHolding && isReady && (
+            {!isHolding && phase === 'active' && (
               <p className="text-center text-gray-600 text-xs mt-2">
-                Hold button for 5 seconds to confirm
+                Hold for 5 seconds to save
               </p>
             )}
           </div>
