@@ -26,11 +26,13 @@ def build_leaderboard(db: DbSession) -> list[dict]:
         monthly = sum(1 for s in sessions if s.date >= month_start and s.date <= today)
 
         result.append({
+            "id": user.id,
             "username": user.username,
-            "total_xp": user.xp,
+            "xp": user.xp,
             "level": user.level,
             "weekly_sessions": weekly,
             "monthly_sessions": monthly,
+            "total_sessions": len(sessions),
             "current_streak": user.current_streak,
             "longest_streak": user.longest_streak,
         })
@@ -39,10 +41,9 @@ def build_leaderboard(db: DbSession) -> list[dict]:
     return result
 
 
-@router.get("", response_model=list[LeaderboardUser])
+@router.get("")
 def leaderboard(
     current_user: User = Depends(get_current_user),
     db: DbSession = Depends(get_db),
 ):
-    data = build_leaderboard(db)
-    return [LeaderboardUser(**item) for item in data]
+    return build_leaderboard(db)
