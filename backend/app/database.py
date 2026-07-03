@@ -182,6 +182,12 @@ def init_db():
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
+            # SECURITY NOTE: These are bootstrap/seed accounts created only on first deploy
+            # (when the database is empty). The plaintext passwords below are used once to
+            # generate bcrypt hashes and are never stored. All users — especially 'noki'
+            # (admin) — MUST change their passwords via the admin panel immediately after
+            # first login. These defaults are well-known in source code and must not be
+            # left in place on a production deployment.
             users_data = [
                 ("dennis", "dennis123", False),
                 ("cyrus", "cyrus123", False),
