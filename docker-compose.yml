@@ -6,10 +6,12 @@ services:
     ports:
       - "5000:8000"
     volumes:
-      # Bind-mount to host dir — survives docker-compose down, docker volume prune, everything
+      # Bind-mount to host dir -- survives docker-compose down, docker volume prune, everything
       - /home/noki/gymtrack-data:/app/data
+      # Avatar uploads persist across redeploys
+      - /home/noki/gymtrack-data/uploads:/app/uploads
     environment:
-      - SECRET_KEY=${SECRET_KEY:-gymtrack-secret-change-in-prod-2024}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     restart: unless-stopped
 
   frontend:

@@ -37,6 +37,7 @@ class User(Base):
     last_workout_date = Column(String, nullable=True)  # YYYY-MM-DD
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     is_admin = Column(Boolean, default=False, nullable=False, server_default="0")
+    avatar_url = Column(String, nullable=True)
 
     sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
 
@@ -163,6 +164,13 @@ def init_db():
     with engine.connect() as conn:
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except OperationalError:
+            pass  # column already exists — safe to ignore
+
+        # Migration: add avatar_url column if it doesn't exist yet
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR"))
             conn.commit()
         except OperationalError:
             pass  # column already exists — safe to ignore

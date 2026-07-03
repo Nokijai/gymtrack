@@ -35,6 +35,7 @@ def build_leaderboard(db: DbSession) -> list[dict]:
             "total_sessions": len(sessions),
             "current_streak": user.current_streak,
             "longest_streak": user.longest_streak,
+            "avatar_url": user.avatar_url,
         })
 
     result.sort(key=lambda u: u["xp"], reverse=True)

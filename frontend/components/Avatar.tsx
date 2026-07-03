@@ -11,12 +11,29 @@ const sizeClasses: Record<'sm' | 'md' | 'lg', string> = {
   lg: 'w-24 h-24 text-4xl',
 }
 
+const imgSizes: Record<'sm' | 'md' | 'lg', string> = {
+  sm: 'w-8 h-8',
+  md: 'w-12 h-12',
+  lg: 'w-24 h-24',
+}
+
 interface AvatarProps {
   username: string
   size?: 'sm' | 'md' | 'lg'
+  avatarUrl?: string | null
 }
 
-export default function Avatar({ username, size = 'md' }: AvatarProps) {
+export default function Avatar({ username, size = 'md', avatarUrl }: AvatarProps) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={`${username}'s avatar`}
+        className={`${imgSizes[size]} rounded-full object-cover shadow-lg flex-shrink-0`}
+      />
+    )
+  }
+
   const color = getAvatarColor(username)
   return (
     <div

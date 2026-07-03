@@ -6,6 +6,7 @@ export interface User {
   current_streak: number
   longest_streak: number
   is_admin?: boolean
+  avatar_url?: string | null
 }
 
 export interface Exercise {
@@ -35,6 +36,7 @@ export interface LeaderboardEntry {
   weekly_sessions: number
   monthly_sessions: number
   total_sessions: number
+  avatar_url?: string | null
 }
 
 export interface DashboardStats {

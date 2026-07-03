@@ -58,6 +58,7 @@ def dashboard_stats(
             "current_streak": current_user.current_streak,
             "longest_streak": current_user.longest_streak,
             "is_admin": bool(current_user.is_admin),
+            "avatar_url": current_user.avatar_url,
         },
         "total_sessions": total_sessions,
         "total_minutes": total_minutes,

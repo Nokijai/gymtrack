@@ -41,7 +41,7 @@ export default function DashboardPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar username={user.username} size="md" />
+              <Avatar username={user.username} size="md" avatarUrl={user.avatar_url} />
               <div>
                 <h1 className="text-2xl font-bold">Hey, {user.username} 👋</h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">

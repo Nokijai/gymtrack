@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     current_streak: int
     longest_streak: int
     is_admin: bool = False
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -40,6 +41,7 @@ class ProfileResponse(BaseModel):
     total_minutes: int
     member_since: str
     is_admin: bool
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

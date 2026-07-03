@@ -1,12 +1,13 @@
 'use client'
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
 import Avatar from '@/components/Avatar'
+import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
 
 interface ProfileData {
@@ -19,6 +20,7 @@ interface ProfileData {
   total_minutes: number
   member_since: string
   is_admin: boolean
+  avatar_url: string | null
 }
 
 interface SessionRow {
@@ -30,10 +32,15 @@ interface SessionRow {
 }
 
 export default function ProfilePage() {
+  const queryClient = useQueryClient()
+  const { setUser, user } = useAuthStore()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedSession, setSelectedSession] = useState<number | null>(null)
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadLoading, setUploadLoading] = useState(false)
 
   const { data: profile, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ['profile'],
@@ -73,6 +80,43 @@ export default function ProfilePage() {
     pwMutation.mutate({ current_password: pwForm.current, new_password: pwForm.next })
   }
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadError('')
+    setUploadLoading(true)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res = await api.post('/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const { avatar_url } = res.data
+      // Refresh profile query
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      // Update auth store so Nav updates immediately
+      if (user) {
+        setUser({ ...user, avatar_url })
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      if (err?.response?.status === 400) {
+        setUploadError(detail ?? 'Invalid file. Only JPEG, PNG, WebP under 2 MB.')
+      } else if (err?.response?.status === 413) {
+        setUploadError('File exceeds 2 MB limit.')
+      } else {
+        setUploadError('Upload failed. Please try again.')
+      }
+    } finally {
+      setUploadLoading(false)
+      // Reset input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   if (profileLoading || !profile) {
     return (
       <AuthGuard>
@@ -93,7 +137,27 @@ export default function ProfilePage() {
 
           {/* Avatar + badges */}
           <div className="flex flex-col items-center gap-3 py-4">
-            <Avatar username={profile.username} size="lg" />
+            {/* Clickable avatar — opens file picker */}
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+              <Avatar username={profile.username} size="lg" avatarUrl={profile.avatar_url} />
+              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                {uploadLoading ? (
+                  <span className="text-white text-xs">Uploading…</span>
+                ) : (
+                  <span className="text-white text-xs font-semibold">📷 Change</span>
+                )}
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            {uploadError && <p className="text-red-400 text-xs">{uploadError}</p>}
+            {uploadLoading && <p className="text-gray-400 text-xs">Uploading avatar…</p>}
+
             <div className="text-2xl font-bold capitalize">{profile.username}</div>
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <LevelBadge level={profile.level} size="md" />
