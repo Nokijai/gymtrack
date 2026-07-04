@@ -27,42 +27,34 @@ export default function AdminPage() {
   const router = useRouter()
   const { user } = useAuthStore()
 
-  const [users, setUsers] = useState<AdminUser[]>([])
+  const [users, setUsers]   = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]   = useState<string | null>(null)
 
-  // Add user form
   const [newUsername, setNewUsername] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [addError, setAddError] = useState<string | null>(null)
-  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError]       = useState<string | null>(null)
+  const [addLoading, setAddLoading]   = useState(false)
 
-  // Inline password edit
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingId, setEditingId]       = useState<number | null>(null)
   const [editPassword, setEditPassword] = useState('')
-  const [editError, setEditError] = useState<string | null>(null)
+  const [editError, setEditError]       = useState<string | null>(null)
 
-  // XP override
-  const [xpOverrideId, setXpOverrideId] = useState<number | null>(null)
+  const [xpOverrideId, setXpOverrideId]     = useState<number | null>(null)
   const [xpOverrideValue, setXpOverrideValue] = useState('')
-  const [xpError, setXpError] = useState<string | null>(null)
+  const [xpError, setXpError]               = useState<string | null>(null)
 
-  // Sessions panel
-  const [sessionsPanelUserId, setSessionsPanelUserId] = useState<number | null>(null)
+  const [sessionsPanelUserId, setSessionsPanelUserId]     = useState<number | null>(null)
   const [sessionsPanelUsername, setSessionsPanelUsername] = useState('')
-  const [sessions, setSessions] = useState<AdminSession[]>([])
-  const [sessionsLoading, setSessionsLoading] = useState(false)
-  const [sessionsError, setSessionsError] = useState<string | null>(null)
+  const [sessions, setSessions]                           = useState<AdminSession[]>([])
+  const [sessionsLoading, setSessionsLoading]             = useState(false)
+  const [sessionsError, setSessionsError]                 = useState<string | null>(null)
 
-  // Session edit inline
-  const [editingSessionId, setEditingSessionId] = useState<number | null>(null)
-  const [editSessionForm, setEditSessionForm] = useState({ date: '', duration_minutes: '', notes: '' })
-  const [editSessionError, setEditSessionError] = useState<string | null>(null)
-
-  // Delete session confirm
+  const [editingSessionId, setEditingSessionId]   = useState<number | null>(null)
+  const [editSessionForm, setEditSessionForm]     = useState({ date: '', duration_minutes: '', notes: '' })
+  const [editSessionError, setEditSessionError]   = useState<string | null>(null)
   const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null)
 
-  // Redirect non-admins
   useEffect(() => {
     if (user === null) return
     if (!user.is_admin) router.replace('/dashboard')
@@ -77,70 +69,50 @@ export default function AdminPage() {
 
   useEffect(() => { if (user?.is_admin) loadUsers() }, [user])
 
-  // Add user
   async function handleAddUser(e: React.FormEvent) {
-    e.preventDefault()
-    setAddError(null)
-    setAddLoading(true)
+    e.preventDefault(); setAddError(null); setAddLoading(true)
     try {
       await api.post('/admin/users', { username: newUsername, password: newPassword })
-      setNewUsername('')
-      setNewPassword('')
-      loadUsers()
-    } catch (e: any) {
-      setAddError(e.response?.data?.detail ?? 'Failed to create user')
-    } finally { setAddLoading(false) }
+      setNewUsername(''); setNewPassword(''); loadUsers()
+    } catch (e: any) { setAddError(e.response?.data?.detail ?? 'Failed to create user') }
+    finally { setAddLoading(false) }
   }
 
-  // Change password
   async function handleChangePassword(userId: number) {
     setEditError(null)
     if (!editPassword) { setEditError('Password cannot be empty'); return }
     try {
       await api.put(`/admin/users/${userId}/password`, { new_password: editPassword })
-      setEditingId(null)
-      setEditPassword('')
+      setEditingId(null); setEditPassword('')
     } catch (e: any) { setEditError(e.response?.data?.detail ?? 'Failed to update password') }
   }
 
-  // Delete user
   async function handleDelete(userId: number, username: string) {
     if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return
-    try {
-      await api.delete(`/admin/users/${userId}`)
-      loadUsers()
-    } catch (e: any) { alert(e.response?.data?.detail ?? 'Failed to delete user') }
+    try { await api.delete(`/admin/users/${userId}`); loadUsers() }
+    catch (e: any) { alert(e.response?.data?.detail ?? 'Failed to delete user') }
   }
 
-  // Override XP
   async function handleOverrideXP(userId: number) {
     setXpError(null)
     const xp = parseInt(xpOverrideValue)
     if (isNaN(xp) || xp < 0) { setXpError('Enter a valid non-negative number'); return }
     try {
       await api.put(`/admin/users/${userId}/xp`, { xp })
-      setXpOverrideId(null)
-      setXpOverrideValue('')
-      loadUsers()
+      setXpOverrideId(null); setXpOverrideValue(''); loadUsers()
     } catch (e: any) { setXpError(e.response?.data?.detail ?? 'Failed to override XP') }
   }
 
-  // View sessions
   async function loadSessions(userId: number, username: string) {
-    setSessionsPanelUserId(userId)
-    setSessionsPanelUsername(username)
-    setSessionsLoading(true)
-    setSessionsError(null)
-    setEditingSessionId(null)
+    setSessionsPanelUserId(userId); setSessionsPanelUsername(username)
+    setSessionsLoading(true); setSessionsError(null); setEditingSessionId(null)
     try {
       const r = await api.get(`/admin/users/${userId}/sessions`)
       setSessions(r.data)
-    } catch (e: any) {
-      setSessionsError(e.response?.data?.detail ?? 'Failed to load sessions')
-    } finally { setSessionsLoading(false) }
+    } catch (e: any) { setSessionsError(e.response?.data?.detail ?? 'Failed to load sessions') }
+    finally { setSessionsLoading(false) }
   }
 
-  // Edit session
   function startEditSession(s: AdminSession) {
     setEditingSessionId(s.id)
     setEditSessionForm({ date: s.date, duration_minutes: String(s.duration_minutes), notes: s.notes ?? '' })
@@ -151,8 +123,7 @@ export default function AdminPage() {
     setEditSessionError(null)
     const dur = parseInt(editSessionForm.duration_minutes)
     if (!editSessionForm.date || isNaN(dur) || dur < 1) {
-      setEditSessionError('Date and valid duration are required')
-      return
+      setEditSessionError('Date and valid duration are required'); return
     }
     try {
       await api.put(`/admin/sessions/${sessionId}`, {
@@ -166,7 +137,6 @@ export default function AdminPage() {
     } catch (e: any) { setEditSessionError(e.response?.data?.detail ?? 'Failed to update session') }
   }
 
-  // Delete session
   async function handleDeleteSession(sessionId: number) {
     if (!confirm('Delete this session? XP and streak will be recalculated.')) return
     setDeletingSessionId(sessionId)
@@ -178,252 +148,168 @@ export default function AdminPage() {
     finally { setDeletingSessionId(null) }
   }
 
-  if (!user) return null
-  if (!user.is_admin) return null
+  if (!user || !user.is_admin) return null
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
         <Nav />
-        <div className="max-w-5xl mx-auto px-4 py-6 md:py-8 space-y-8">
 
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🛡️</span>
-            <h1 className="text-xl md:text-2xl font-bold">Admin Panel</h1>
-          </div>
+        <div className="max-w-3xl mx-auto px-4 py-6 pb-8 space-y-5">
 
-          {/* User table — scrollable on mobile */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <div className="px-4 md:px-6 py-4 border-b border-gray-800">
-              <h2 className="font-semibold text-base md:text-lg">Users</h2>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <span>🛡️</span> Admin Panel
+          </h1>
+
+          {/* ── Users table ─────────────────────────────────────────────── */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="font-semibold text-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                Users
+              </h2>
             </div>
 
             {loading ? (
-              <div className="px-6 py-8 text-gray-400">Loading users…</div>
+              <div className="px-5 py-8 text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>
             ) : error ? (
-              <div className="px-6 py-8 text-red-400">{error}</div>
+              <div className="px-5 py-8 text-red-400 text-sm">{error}</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[500px]">
-                  <thead>
-                    <tr className="text-gray-400 border-b border-gray-800">
-                      <th className="text-left px-4 md:px-6 py-3 font-medium">Username</th>
-                      <th className="text-left px-4 md:px-6 py-3 font-medium">Level</th>
-                      <th className="text-left px-4 md:px-6 py-3 font-medium">XP</th>
-                      <th className="text-left px-4 md:px-6 py-3 font-medium">Role</th>
-                      <th className="text-right px-4 md:px-6 py-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <>
-                        <tr key={u.id} className="border-b border-gray-800 last:border-0 hover:bg-gray-800/40">
-                          <td className="px-4 md:px-6 py-3 font-medium">{u.username}</td>
-                          <td className="px-4 md:px-6 py-3 text-gray-300">Lv.{u.level}</td>
-                          <td className="px-4 md:px-6 py-3 text-orange-400">{u.xp}</td>
-                          <td className="px-4 md:px-6 py-3">
-                            {u.is_admin ? (
-                              <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30">Admin</span>
-                            ) : (
-                              <span className="text-xs text-gray-500">User</span>
-                            )}
-                          </td>
-                          <td className="px-4 md:px-6 py-3">
-                            <div className="flex items-center justify-end gap-1 flex-wrap">
-                              <button
-                                onClick={() => loadSessions(u.id, u.username)}
-                                className="px-2 md:px-3 py-1.5 text-xs rounded-lg bg-blue-900/60 hover:bg-blue-800 text-blue-300 transition-colors min-h-[32px]"
-                              >
-                                Sessions
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setXpOverrideId(xpOverrideId === u.id ? null : u.id)
-                                  setXpOverrideValue(String(u.xp))
-                                  setXpError(null)
-                                }}
-                                className="px-2 md:px-3 py-1.5 text-xs rounded-lg bg-yellow-900/60 hover:bg-yellow-800 text-yellow-300 transition-colors min-h-[32px]"
-                              >
-                                XP
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingId(editingId === u.id ? null : u.id)
-                                  setEditPassword('')
-                                  setEditError(null)
-                                }}
-                                className="px-2 md:px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors min-h-[32px]"
-                              >
-                                {editingId === u.id ? 'Cancel' : 'Password'}
-                              </button>
-                              {u.id !== user.id && (
-                                <button
-                                  onClick={() => handleDelete(u.id, u.username)}
-                                  className="px-2 md:px-3 py-1.5 text-xs rounded-lg bg-red-900/60 hover:bg-red-800 text-red-300 transition-colors min-h-[32px]"
-                                >
-                                  Del
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* XP override row */}
-                        {xpOverrideId === u.id && (
-                          <tr key={`xp-${u.id}`} className="bg-yellow-950/20 border-b border-gray-800">
-                            <td colSpan={5} className="px-4 md:px-6 py-3">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-yellow-300 text-xs font-medium">Override XP for {u.username}:</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={xpOverrideValue}
-                                  onChange={(e) => setXpOverrideValue(e.target.value)}
-                                  className="w-28 bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-yellow-500"
-                                />
-                                <button
-                                  onClick={() => handleOverrideXP(u.id)}
-                                  className="px-3 py-1.5 text-xs rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white font-medium min-h-[32px]"
-                                >
-                                  Save
-                                </button>
-                                <button onClick={() => setXpOverrideId(null)} className="text-gray-400 text-xs hover:text-white min-h-[32px] px-2">Cancel</button>
-                              </div>
-                              {xpError && <p className="text-red-400 text-xs mt-1">{xpError}</p>}
-                            </td>
-                          </tr>
+              <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                {users.map((u) => (
+                  <div key={u.id}>
+                    {/* User row */}
+                    <div className="flex items-center gap-3 px-5 py-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm capitalize">{u.username}</div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          Lv.{u.level} · {u.xp.toLocaleString()} XP
+                          {u.is_admin && <span className="ml-2 text-orange-400 font-semibold">Admin</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <ActionBtn onClick={() => loadSessions(u.id, u.username)} color="blue">Sessions</ActionBtn>
+                        <ActionBtn onClick={() => { setXpOverrideId(xpOverrideId === u.id ? null : u.id); setXpOverrideValue(String(u.xp)); setXpError(null) }} color="yellow">XP</ActionBtn>
+                        <ActionBtn onClick={() => { setEditingId(editingId === u.id ? null : u.id); setEditPassword(''); setEditError(null) }} color="gray">
+                          {editingId === u.id ? 'Cancel' : 'Password'}
+                        </ActionBtn>
+                        {u.id !== user.id && (
+                          <ActionBtn onClick={() => handleDelete(u.id, u.username)} color="red">Delete</ActionBtn>
                         )}
+                      </div>
+                    </div>
 
-                        {/* Password edit row */}
-                        {editingId === u.id && (
-                          <tr key={`edit-${u.id}`} className="bg-gray-800/60 border-b border-gray-800">
-                            <td colSpan={5} className="px-4 md:px-6 py-3">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <input
-                                  type="password"
-                                  value={editPassword}
-                                  onChange={(e) => setEditPassword(e.target.value)}
-                                  placeholder="New password"
-                                  className="flex-1 min-w-[150px] bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
-                                />
-                                <button
-                                  onClick={() => handleChangePassword(u.id)}
-                                  className="px-3 py-1.5 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium min-h-[32px]"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                              {editError && <p className="text-red-400 text-xs mt-1">{editError}</p>}
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    ))}
-                  </tbody>
-                </table>
+                    {/* XP override */}
+                    {xpOverrideId === u.id && (
+                      <div className="px-5 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'rgba(245,158,11,0.05)' }}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium" style={{ color: '#fbbf24' }}>Override XP:</span>
+                          <input type="number" min="0" value={xpOverrideValue}
+                            onChange={(e) => setXpOverrideValue(e.target.value)}
+                            className="w-28 rounded-lg px-3 py-1.5 text-sm border"
+                            style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                          />
+                          <ActionBtn onClick={() => handleOverrideXP(u.id)} color="yellow">Save</ActionBtn>
+                          <button onClick={() => setXpOverrideId(null)} className="text-xs" style={{ color: 'var(--text-muted)' }}>Cancel</button>
+                        </div>
+                        {xpError && <p className="text-red-400 text-xs mt-1">{xpError}</p>}
+                      </div>
+                    )}
+
+                    {/* Password edit */}
+                    {editingId === u.id && (
+                      <div className="px-5 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input type="password" value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            placeholder="New password"
+                            className="flex-1 min-w-[160px] rounded-lg px-3 py-1.5 text-sm border"
+                            style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                          />
+                          <ActionBtn onClick={() => handleChangePassword(u.id)} color="gray">Save</ActionBtn>
+                        </div>
+                        {editError && <p className="text-red-400 text-xs mt-1">{editError}</p>}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Sessions panel */}
+          {/* ── Sessions panel ──────────────────────────────────────────── */}
           {sessionsPanelUserId !== null && (
-            <div className="bg-gray-900 border border-blue-800/50 rounded-2xl overflow-hidden">
-              <div className="px-4 md:px-6 py-4 border-b border-gray-800 flex items-center justify-between gap-2">
-                <h2 className="font-semibold text-base md:text-lg min-w-0">
-                  📋 Sessions: <span className="text-blue-400 truncate">{sessionsPanelUsername}</span>
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+                <h2 className="font-semibold text-sm truncate" style={{ color: 'var(--text-muted)' }}>
+                  Sessions: <span style={{ color: 'var(--accent)' }}>{sessionsPanelUsername}</span>
                 </h2>
-                <button
-                  onClick={() => setSessionsPanelUserId(null)}
-                  className="text-gray-400 hover:text-white text-sm flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  ✕
+                <button onClick={() => setSessionsPanelUserId(null)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
                 </button>
               </div>
 
               {sessionsLoading ? (
-                <div className="px-6 py-6 text-gray-400">Loading sessions…</div>
+                <div className="px-5 py-6 text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>
               ) : sessionsError ? (
-                <div className="px-6 py-6 text-red-400">{sessionsError}</div>
+                <div className="px-5 py-6 text-red-400 text-sm">{sessionsError}</div>
               ) : sessions.length === 0 ? (
-                <div className="px-6 py-6 text-gray-500">No sessions found.</div>
+                <div className="px-5 py-6 text-sm" style={{ color: 'var(--text-muted)' }}>No sessions.</div>
               ) : (
-                <div className="divide-y divide-gray-800">
+                <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
                   {sessions.map((s) => (
-                    <div key={s.id} className="px-4 md:px-6 py-4">
+                    <div key={s.id} className="px-5 py-4">
                       {editingSessionId === s.id ? (
-                        // Edit form — full width on mobile
                         <div className="space-y-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Date</label>
-                              <input
-                                type="date"
-                                value={editSessionForm.date}
+                              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Date</label>
+                              <input type="date" value={editSessionForm.date}
                                 onChange={(e) => setEditSessionForm((f) => ({ ...f, date: e.target.value }))}
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 min-h-[44px]"
+                                className="w-full rounded-xl px-3 py-2.5 text-sm border min-h-[44px]"
+                                style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Duration (min)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={editSessionForm.duration_minutes}
+                              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Duration (min)</label>
+                              <input type="number" min="1" value={editSessionForm.duration_minutes}
                                 onChange={(e) => setEditSessionForm((f) => ({ ...f, duration_minutes: e.target.value }))}
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 min-h-[44px]"
+                                className="w-full rounded-xl px-3 py-2.5 text-sm border min-h-[44px]"
+                                style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
                               />
                             </div>
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Notes</label>
-                            <textarea
-                              value={editSessionForm.notes}
-                              onChange={(e) => setEditSessionForm((f) => ({ ...f, notes: e.target.value }))}
-                              rows={2}
-                              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 resize-none"
-                            />
-                          </div>
+                          <textarea value={editSessionForm.notes}
+                            onChange={(e) => setEditSessionForm((f) => ({ ...f, notes: e.target.value }))}
+                            rows={2} placeholder="Notes (optional)"
+                            className="w-full rounded-xl px-3 py-2.5 text-sm border resize-none"
+                            style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                          />
                           {editSessionError && <p className="text-red-400 text-xs">{editSessionError}</p>}
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditSession(s.id)}
-                              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium min-h-[44px]"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingSessionId(null)}
-                              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 min-h-[44px]"
-                            >
-                              Cancel
-                            </button>
+                            <ActionBtn onClick={() => handleEditSession(s.id)} color="blue">Save</ActionBtn>
+                            <ActionBtn onClick={() => setEditingSessionId(null)} color="gray">Cancel</ActionBtn>
                           </div>
                         </div>
                       ) : (
-                        // Display row
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="min-w-0">
-                            <div className="font-medium text-sm">{s.date}</div>
-                            <div className="text-gray-400 text-xs mt-0.5 truncate">
+                            <div className="font-semibold text-sm">{s.date}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                               {s.duration_minutes} min
                               {s.notes ? ` · ${s.notes}` : ''}
-                              {s.exercises.length > 0 ? ` · ${s.exercises.length} exercise${s.exercises.length !== 1 ? 's' : ''}` : ''}
+                              {s.exercises.length > 0 ? ` · ${s.exercises.length} ex` : ''}
                             </div>
                           </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => startEditSession(s)}
-                              className="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 min-h-[36px]"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteSession(s.id)}
-                              disabled={deletingSessionId === s.id}
-                              className="px-3 py-1.5 text-xs rounded-lg bg-red-900/60 hover:bg-red-800 text-red-300 disabled:opacity-50 min-h-[36px]"
-                            >
-                              {deletingSessionId === s.id ? 'Deleting…' : 'Delete'}
-                            </button>
+                          <div className="flex gap-1.5">
+                            <ActionBtn onClick={() => startEditSession(s)} color="gray">Edit</ActionBtn>
+                            <ActionBtn onClick={() => handleDeleteSession(s.id)} color="red"
+                              disabled={deletingSessionId === s.id}>
+                              {deletingSessionId === s.id ? '…' : 'Del'}
+                            </ActionBtn>
                           </div>
                         </div>
                       )}
@@ -434,40 +320,60 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Add User form — stacked on mobile */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
-            <h2 className="font-semibold text-base md:text-lg mb-4">Add User</h2>
+          {/* ── Add user form ──────────────────────────────────────────── */}
+          <div className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <h2 className="font-semibold text-sm mb-4" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Add User
+            </h2>
             <form onSubmit={handleAddUser} className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="Username"
-                  required
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 min-h-[44px]"
+                <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="Username" required
+                  className="flex-1 rounded-xl px-4 py-3 text-sm border min-h-[48px]"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
                 />
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 min-h-[44px]"
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Password" required
+                  className="flex-1 rounded-xl px-4 py-3 text-sm border min-h-[48px]"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
                 />
-                <button
-                  type="submit"
-                  disabled={addLoading}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px]"
-                >
+                <button type="submit" disabled={addLoading}
+                  className="rounded-xl px-5 py-3 text-sm font-semibold min-h-[48px] transition-opacity"
+                  style={{ background: 'var(--accent)', color: '#fff', opacity: addLoading ? 0.7 : 1 }}>
                   {addLoading ? 'Adding…' : 'Add User'}
                 </button>
               </div>
               {addError && <p className="text-red-400 text-sm">{addError}</p>}
             </form>
           </div>
+
         </div>
       </div>
     </AuthGuard>
+  )
+}
+
+// Reusable small action button
+function ActionBtn({
+  children, onClick, color = 'gray', disabled = false
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  color?: 'blue' | 'yellow' | 'red' | 'gray'
+  disabled?: boolean
+}) {
+  const colorMap = {
+    blue:   { bg: 'rgba(59,130,246,0.15)',  text: '#60a5fa',  border: 'rgba(59,130,246,0.3)' },
+    yellow: { bg: 'rgba(245,158,11,0.15)',  text: '#fbbf24',  border: 'rgba(245,158,11,0.3)' },
+    red:    { bg: 'rgba(239,68,68,0.12)',   text: '#f87171',  border: 'rgba(239,68,68,0.25)' },
+    gray:   { bg: 'rgba(255,255,255,0.06)', text: 'var(--text-muted)', border: 'var(--border)' },
+  }
+  const c = colorMap[color]
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className="px-3 py-1.5 rounded-lg text-xs font-semibold min-h-[32px] transition-opacity"
+      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}`, opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+      {children}
+    </button>
   )
 }

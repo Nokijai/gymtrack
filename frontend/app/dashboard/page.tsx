@@ -1,20 +1,24 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
+import { xpForLevel, xpForNextLevel } from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
 import Avatar from '@/components/Avatar'
 import { useSSE } from '@/hooks/useSSE'
+import { useTimerStore } from '@/lib/store'
 import api from '@/lib/api'
 import type { DashboardStats } from '@/lib/types'
 
 export default function DashboardPage() {
   useSSE()
   const [selectedSession, setSelectedSession] = useState<number | null>(null)
+  const { isRunning } = useTimerStore()
 
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
@@ -24,105 +28,194 @@ export default function DashboardPage() {
   if (isLoading || !data) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-          <div className="text-gray-400">Loading...</div>
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
+          <Spinner />
         </div>
       </AuthGuard>
     )
   }
 
   const { user, total_sessions, total_minutes, recent_sessions, weekly_data } = data
+  const currentLevelXP = xpForLevel(user.level)
+  const nextLevelXP    = xpForNextLevel(user.level)
+  const xpInLevel      = user.xp - currentLevelXP
+  const xpNeeded       = nextLevelXP - currentLevelXP
+  const xpPct          = user.level >= 20 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
+
+  // Highlight the current day in chart
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
         <Nav />
-        <div className="max-w-4xl mx-auto px-4 py-6 md:py-8 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <Avatar username={user.username} size="md" avatarUrl={user.avatar_url} />
-            <div className="min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold truncate">Hey, {user.username} 👋</h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <LevelBadge level={user.level} />
-                <XPBadge xp={user.xp} />
+
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-8">
+
+          {/* ── Hero: user card ───────────────────────────────────────── */}
+          <div className="rounded-2xl p-5 relative overflow-hidden"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            {/* Subtle accent glow */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)' }} />
+
+            <div className="flex items-center gap-4 relative">
+              <Avatar username={user.username} size="lg" avatarUrl={user.avatar_url} />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold capitalize truncate">
+                  Hey, {user.username} 👋
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <LevelBadge level={user.level} size="sm" />
+                  <XPBadge xp={user.xp} size="sm" />
+                </div>
+
+                {/* XP progress bar */}
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                    <span>{user.level >= 20 ? 'MAX LEVEL' : `${xpInLevel} / ${xpNeeded} XP to Lv.${user.level + 1}`}</span>
+                    <span>{xpPct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700 progress-shimmer"
+                      style={{ width: `${xpPct}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Active workout banner */}
+            {isRunning && (
+              <Link href="/log" className="flex items-center gap-2 mt-4 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
+                style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}>
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                Workout in progress — tap to resume
+              </Link>
+            )}
           </div>
 
-          {/* Stat cards — 2 cols mobile, 4 on desktop */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <StatCard label="Total Sessions" value={total_sessions.toString()} icon="💪" />
-            <StatCard label="Total Hours" value={(total_minutes / 60).toFixed(1)} icon="⏱️" />
-            <StatCard label="Current Streak" value={`${user.current_streak}d`} icon="🔥" highlight={user.current_streak > 0} />
-            <StatCard label="Best Streak" value={`${user.longest_streak}d`} icon="🏆" />
+          {/* ── Stats grid ───────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard icon="💪" label="Total Sessions" value={total_sessions.toString()} />
+            <StatCard icon="⏱️" label="Total Hours" value={(total_minutes / 60).toFixed(1)} />
+            <StatCard icon="🔥" label="Current Streak" value={`${user.current_streak}d`} accent={user.current_streak > 0} accentColor="#f97316" />
+            <StatCard icon="🏆" label="Best Streak" value={`${user.longest_streak}d`} />
           </div>
 
-          {/* Weekly chart — full width */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 w-full">
-            <h2 className="text-base md:text-lg font-semibold mb-4">This Week</h2>
-            <div className="w-full">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weekly_data}>
-                  <XAxis dataKey="day" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: '#1f2937', border: 'none', borderRadius: 8 }}
-                    labelStyle={{ color: '#f3f4f6' }}
-                    formatter={(v: any) => [`${v} min`, 'Duration']}
-                  />
-                  <Bar dataKey="minutes" fill="#f97316" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* ── Weekly bar chart ─────────────────────────────────────── */}
+          <div className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              This Week
+            </h2>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={weekly_data} barGap={4}>
+                <XAxis
+                  dataKey="day"
+                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                  axisLine={false} tickLine={false}
+                />
+                <YAxis hide />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  contentStyle={{ background: '#1e1e2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 12 }}
+                  labelStyle={{ color: 'var(--text)' }}
+                  formatter={(v: any) => [`${v} min`, 'Duration']}
+                />
+                <Bar dataKey="minutes" radius={[5, 5, 0, 0]} maxBarSize={32}>
+                  {weekly_data.map((entry) => (
+                    <Cell
+                      key={entry.day}
+                      fill={entry.day === today ? 'var(--accent)' : 'rgba(59,130,246,0.3)'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* ── Recent sessions ──────────────────────────────────────── */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                Recent Sessions
+              </h2>
+              <Link href="/profile" className="text-xs font-medium" style={{ color: 'var(--accent)' }}>View all</Link>
             </div>
-          </div>
 
-          {/* Recent sessions */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
-            <h2 className="text-base md:text-lg font-semibold mb-4">Recent Sessions</h2>
             {recent_sessions.length === 0 ? (
-              <p className="text-gray-500 text-sm">No sessions yet. <a href="/log" className="text-orange-400 hover:underline">Log your first one!</a></p>
+              <div className="px-5 pb-5 text-sm" style={{ color: 'var(--text-muted)' }}>
+                No sessions yet.{' '}
+                <Link href="/log" style={{ color: 'var(--accent)' }}>Log your first one!</Link>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {recent_sessions.map((s) => (
-                  <div
+                  <button
                     key={s.id}
                     onClick={() => setSelectedSession(s.id)}
-                    className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 cursor-pointer hover:ring-1 hover:ring-orange-500 transition-all min-h-[44px]"
+                    className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-white/[0.03] min-h-[60px]"
                   >
-                    <div className="min-w-0 flex-1 mr-2">
-                      <div className="font-medium text-sm md:text-base">{s.date}</div>
-                      <div className="text-gray-400 text-xs truncate">
-                        {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''}{s.notes ? ` · ${s.notes}` : ''}
+                    <div className="min-w-0 flex-1 mr-3">
+                      <div className="font-semibold text-sm">{s.date}</div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+                        {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''}
+                        {s.notes ? ` · ${s.notes}` : ''}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="text-orange-400 font-semibold text-sm">{s.duration_minutes} min</div>
-                      <span className="text-gray-600 text-xs">›</span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{s.duration_minutes}m</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
+
         </div>
       </div>
 
-      {/* Session detail modal */}
-      <SessionDetailModal
-        sessionId={selectedSession}
-        onClose={() => setSelectedSession(null)}
-      />
+      <SessionDetailModal sessionId={selectedSession} onClose={() => setSelectedSession(null)} />
     </AuthGuard>
   )
 }
 
-function StatCard({ label, value, icon, highlight }: { label: string; value: string; icon: string; highlight?: boolean }) {
+function StatCard({
+  icon, label, value, accent = false, accentColor
+}: {
+  icon: string
+  label: string
+  value: string
+  accent?: boolean
+  accentColor?: string
+}) {
   return (
-    <div className={`rounded-2xl p-3 md:p-4 border ${highlight ? 'bg-orange-950 border-orange-800' : 'bg-gray-900 border-gray-800'}`}>
-      <div className="text-xl md:text-2xl mb-1">{icon}</div>
-      <div className={`text-xl md:text-2xl font-bold ${highlight ? 'text-orange-400' : 'text-white'}`}>{value}</div>
-      <div className="text-gray-400 text-xs mt-1 leading-tight">{label}</div>
+    <div className="rounded-2xl p-4"
+      style={{
+        background: accent && accentColor
+          ? `rgba(${accentColor === '#f97316' ? '249,115,22' : '59,130,246'},0.1)`
+          : 'var(--bg-surface)',
+        border: `1px solid ${accent && accentColor ? `rgba(${accentColor === '#f97316' ? '249,115,22' : '59,130,246'},0.25)` : 'var(--border)'}`,
+      }}>
+      <div className="text-2xl mb-2">{icon}</div>
+      <div className="text-2xl font-bold" style={{ color: accent && accentColor ? accentColor : 'var(--text)' }}>
+        {value}
+      </div>
+      <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{label}</div>
+    </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+        style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</span>
     </div>
   )
 }

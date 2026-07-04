@@ -76,14 +76,16 @@ def get_db():
 
 
 def calculate_level(xp: int) -> int:
-    if xp >= 2000:
-        return 5
-    elif xp >= 1000:
-        return 4
-    elif xp >= 500:
-        return 3
-    elif xp >= 200:
-        return 2
+    """Map XP to level 1–20.  Thresholds match the frontend LevelBadge."""
+    thresholds = [
+        (33000, 20), (29000, 19), (25000, 18), (21500, 17), (18000, 16),
+        (15000, 15), (12500, 14), (10000, 13), ( 8200, 12), ( 6500, 11),
+        ( 5000, 10), ( 3700,  9), ( 2800,  8), ( 2000,  7), ( 1400,  6),
+        (  900,  5), (  500,  4), (  250,  3), (  100,  2),
+    ]
+    for threshold, level in thresholds:
+        if xp >= threshold:
+            return level
     return 1
 
 

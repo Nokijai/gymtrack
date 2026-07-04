@@ -1,6 +1,6 @@
 export default function XPBadge({ xp, size = 'sm' }: { xp: number; size?: 'sm' | 'md' }) {
-  const padding = size === 'md' ? '0.3rem 0.75rem' : '0.2rem 0.5rem'
-  const fontSize = size === 'md' ? '0.85rem' : '0.75rem'
+  const padding  = size === 'md' ? '0.25rem 0.7rem' : '0.15rem 0.5rem'
+  const fontSize = size === 'md' ? '0.8rem' : '0.72rem'
   return (
     <span
       style={{
@@ -9,11 +9,13 @@ export default function XPBadge({ xp, size = 'sm' }: { xp: number; size?: 'sm' |
         gap: '0.2rem',
         padding,
         borderRadius: '9999px',
-        background: '#f59e0b',
-        color: '#fff',
+        background: 'rgba(245,158,11,0.15)',
+        color: '#fbbf24',
+        border: '1px solid rgba(245,158,11,0.3)',
         fontSize,
-        fontWeight: 600,
+        fontWeight: 700,
         whiteSpace: 'nowrap',
+        letterSpacing: '0.01em',
       }}
     >
       ⚡ {xp.toLocaleString()} XP

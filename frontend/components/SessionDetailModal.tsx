@@ -24,14 +24,13 @@ interface Props {
 }
 
 export default function SessionDetailModal({ sessionId, onClose }: Props) {
-  const [detail, setDetail] = useState<SessionDetail | null>(null)
+  const [detail, setDetail]   = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
 
   useEffect(() => {
     if (sessionId === null) { setDetail(null); return }
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     api.get(`/sessions/${sessionId}`)
       .then((r) => setDetail(r.data))
       .catch(() => setError('Failed to load session details'))
@@ -42,91 +41,99 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-lg sm:mx-4 rounded-t-3xl sm:rounded-2xl overflow-hidden"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Handle (mobile) */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border)' }} />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Session Details</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <h2 className="font-bold text-base">Session Details</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-xl leading-none"
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}
           >
-            ×
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </button>
         </div>
 
-        {loading && (
-          <div className="text-gray-400 text-center py-8">Loading…</div>
-        )}
-
-        {error && (
-          <div className="text-red-400 text-center py-4">{error}</div>
-        )}
-
-        {detail && !loading && (
-          <>
-            {/* Session meta */}
-            <div className="flex gap-4 mb-5">
-              <div className="bg-gray-800 rounded-xl px-4 py-3 flex-1 text-center">
-                <div className="text-xs text-gray-400 mb-1">Date</div>
-                <div className="font-semibold text-white">{detail.date}</div>
-              </div>
-              <div className="bg-gray-800 rounded-xl px-4 py-3 flex-1 text-center">
-                <div className="text-xs text-gray-400 mb-1">Duration</div>
-                <div className="font-semibold text-orange-400">{detail.duration_minutes} min</div>
-              </div>
-              <div className="bg-gray-800 rounded-xl px-4 py-3 flex-1 text-center">
-                <div className="text-xs text-gray-400 mb-1">XP Earned</div>
-                <div className="font-semibold text-yellow-400">⚡ {detail.xp_earned}</div>
-              </div>
+        <div className="p-5">
+          {loading && (
+            <div className="flex justify-center py-10">
+              <div className="w-7 h-7 rounded-full border-2 animate-spin"
+                style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
             </div>
+          )}
 
-            {/* Exercises */}
-            <h3 className="text-sm font-semibold text-gray-300 mb-2">Exercises</h3>
-            {detail.exercises.length === 0 ? (
-              <p className="text-gray-500 text-sm py-4 text-center">No exercises recorded for this session</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-gray-400 border-b border-gray-700">
-                      <th className="text-left py-2 pr-4">Exercise</th>
-                      <th className="text-center py-2 px-2">Sets</th>
-                      <th className="text-center py-2 px-2">Reps</th>
-                      <th className="text-center py-2 pl-2">Weight</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.exercises.map((ex) => (
-                      <tr key={ex.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                        <td className="py-2 pr-4 text-white font-medium">{ex.name}</td>
-                        <td className="py-2 px-2 text-center text-gray-300">{ex.sets}</td>
-                        <td className="py-2 px-2 text-center text-gray-300">{ex.reps}</td>
-                        <td className="py-2 pl-2 text-center text-gray-300">
-                          {ex.weight_kg != null ? `${ex.weight_kg} kg` : 'BW'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {error && (
+            <div className="text-red-400 text-center py-6 text-sm">{error}</div>
+          )}
+
+          {detail && !loading && (
+            <>
+              {/* Meta pills */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <MetaPill label="Date" value={detail.date} />
+                <MetaPill label="Duration" value={`${detail.duration_minutes} min`} accent="var(--accent)" />
+                <MetaPill label="XP Earned" value={`⚡ ${detail.xp_earned}`} accent="#fbbf24" />
               </div>
-            )}
 
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              className="mt-5 w-full bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2 text-sm font-medium transition-colors"
-            >
-              Close
-            </button>
-          </>
-        )}
+              {/* Exercises */}
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+                Exercises
+              </h3>
+
+              {detail.exercises.length === 0 ? (
+                <p className="text-sm py-4 text-center" style={{ color: 'var(--text-muted)' }}>No exercises recorded</p>
+              ) : (
+                <div className="space-y-2">
+                  {detail.exercises.map((ex) => (
+                    <div key={ex.id} className="flex items-center justify-between rounded-xl px-4 py-3"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                      <span className="font-medium text-sm">{ex.name}</span>
+                      <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+                        <span>{ex.sets}×{ex.reps}</span>
+                        <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>
+                          {ex.weight_kg != null ? `${ex.weight_kg} kg` : 'BW'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={onClose}
+                className="mt-5 w-full rounded-xl py-3 text-sm font-semibold transition-colors"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
+              >
+                Close
+              </button>
+            </>
+          )}
+        </div>
       </div>
+    </div>
+  )
+}
+
+function MetaPill({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+      <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</div>
+      <div className="font-bold text-sm" style={{ color: accent ?? 'var(--text)' }}>{value}</div>
     </div>
   )
 }
