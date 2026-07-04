@@ -148,6 +148,74 @@ async def create_session(
     return session
 
 
+@router.patch("/{session_id}", response_model=SessionResponse)
+async def update_session(
+    session_id: int,
+    data: SessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update an existing session in-place (used for auto-save drafts and final save)."""
+    session = db.query(WorkoutSession).filter(
+        WorkoutSession.id == session_id,
+        WorkoutSession.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    # Update session-level fields
+    session.date = data.date
+    session.duration_minutes = data.duration_minutes
+    session.notes = data.notes
+
+    # Replace all exercises (cascade deletes sets via ORM relationship)
+    for ex in list(session.exercises):
+        db.delete(ex)
+    db.flush()
+
+    for ex in data.exercises:
+        if ex.set_list:
+            agg_sets = len(ex.set_list)
+            agg_reps = ex.set_list[0].reps if ex.set_list[0].reps is not None else 1
+            agg_weight = ex.set_list[0].weight_kg
+        else:
+            agg_sets = ex.sets or 1
+            agg_reps = ex.reps or 1
+            agg_weight = ex.weight_kg
+
+        db_exercise = Exercise(
+            session_id=session.id,
+            name=ex.name,
+            name_cn=ex.name_cn,
+            sets=agg_sets,
+            reps=agg_reps,
+            weight_kg=agg_weight,
+        )
+        db.add(db_exercise)
+        db.flush()
+
+        for i, s in enumerate(ex.set_list):
+            db.add(ExerciseSet(
+                exercise_id=db_exercise.id,
+                set_number=s.set_number or (i + 1),
+                weight_kg=s.weight_kg,
+                reps=s.reps,
+                duration_min=s.duration_min,
+                distance_km=s.distance_km,
+                notes=s.notes,
+            ))
+
+    recalculate_xp(db, current_user)
+    recalculate_streak(db, current_user)
+    db.commit()
+    db.refresh(session)
+
+    broadcast({"type": "refresh", "scope": "leaderboard"})
+    broadcast({"type": "refresh", "scope": "dashboard"})
+
+    return session
+
+
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(
     session_id: int,

@@ -48,6 +48,7 @@ interface ExerciseEntry {
 const HOLD_DURATION = 5000
 type Phase = 'idle' | 'active' | 'saving' | 'saved'
 const EXERCISES_KEY = 'gymtrack_active_session_exercises'
+const DRAFT_SESSION_ID_KEY = 'gymtrack_draft_session_id'
 
 function makeSetRow(): SetRow {
   return {
@@ -232,6 +233,16 @@ export default function LogPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [debriefSessionId, setDebriefSessionId] = useState<number | null>(null)
   const [showDebrief, setShowDebrief] = useState(false)
+  const [draftSessionId, setDraftSessionId] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const stored = localStorage.getItem(DRAFT_SESSION_ID_KEY)
+      return stored ? parseInt(stored) : null
+    } catch { return null }
+  })
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const draftSessionIdRef = useRef<number | null>(draftSessionId)
 
   const [exercises, setExercises] = useState<ExerciseEntry[]>(() => {
     if (typeof window === 'undefined') return []
@@ -249,6 +260,51 @@ export default function LogPage() {
 
   const exercisesRef = useRef<ExerciseEntry[]>([])
   useEffect(() => { exercisesRef.current = exercises }, [exercises])
+
+  // Keep draftSessionIdRef in sync so callbacks always have latest value
+  useEffect(() => { draftSessionIdRef.current = draftSessionId }, [draftSessionId])
+
+  // Persist draftSessionId to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      if (draftSessionId !== null) {
+        localStorage.setItem(DRAFT_SESSION_ID_KEY, String(draftSessionId))
+      } else {
+        localStorage.removeItem(DRAFT_SESSION_ID_KEY)
+      }
+    } catch {}
+  }, [draftSessionId])
+
+  // ── Auto-save debounce ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isRunning || exercises.length === 0) return
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        setAutoSaveStatus('saving')
+        const payload = buildDraftPayload()
+        const currentDraftId = draftSessionIdRef.current
+        let savedId: number
+        if (currentDraftId !== null) {
+          const res = await api.patch(`/sessions/${currentDraftId}`, payload)
+          savedId = res.data.id
+        } else {
+          const res = await api.post('/sessions', payload)
+          savedId = res.data.id
+          setDraftSessionId(savedId)
+        }
+        setAutoSaveStatus('saved')
+        setTimeout(() => setAutoSaveStatus('idle'), 2500)
+      } catch {
+        setAutoSaveStatus('error')
+        setTimeout(() => setAutoSaveStatus('idle'), 2500)
+      }
+    }, 1500)
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    }
+  }, [exercises, isRunning]) // eslint-disable-line
 
   // ── Timer tick ───────────────────────────────────────────────────────────
   const rafRef2 = useRef<number | null>(null)
@@ -279,12 +335,22 @@ export default function LogPage() {
   const didFire      = useRef(false)
 
   const mutation = useMutation({
-    mutationFn: (payload: object) => api.post('/sessions', payload),
+    mutationFn: (payload: object) => {
+      const currentDraftId = draftSessionIdRef.current
+      if (currentDraftId !== null) {
+        return api.patch(`/sessions/${currentDraftId}`, payload)
+      }
+      return api.post('/sessions', payload)
+    },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       stopTimer()
-      try { localStorage.removeItem(EXERCISES_KEY) } catch {}
+      try {
+        localStorage.removeItem(EXERCISES_KEY)
+        localStorage.removeItem(DRAFT_SESSION_ID_KEY)
+      } catch {}
+      setDraftSessionId(null)
 
       // Show debrief if session was created
       const sessionId = response.data?.id
@@ -300,11 +366,62 @@ export default function LogPage() {
     onError: () => { setPhase('active') },
   })
 
+  async function handleDiscard() {
+    const currentDraftId = draftSessionIdRef.current
+    if (currentDraftId !== null) {
+      try { await api.delete(`/sessions/${currentDraftId}`) } catch {}
+    }
+    stopTimer()
+    try {
+      localStorage.removeItem(EXERCISES_KEY)
+      localStorage.removeItem(DRAFT_SESSION_ID_KEY)
+    } catch {}
+    setDraftSessionId(null)
+    setExercises([])
+    setPhase('idle')
+  }
+
   function startWorkout() {
-    try { localStorage.removeItem(EXERCISES_KEY) } catch {}
+    try {
+      localStorage.removeItem(EXERCISES_KEY)
+      localStorage.removeItem(DRAFT_SESSION_ID_KEY)
+    } catch {}
     startTimer()
     setExercises([])
+    setDraftSessionId(null)
     setPhase('active')
+  }
+
+  function buildDraftPayload() {
+    const now = Date.now()
+    const start = startTimestamp ?? (now - elapsed * 1000)
+    const duration_minutes = Math.max(1, Math.round((now - start) / 60_000))
+    const date = new Date(start).toISOString().split('T')[0]
+    return {
+      date,
+      duration_minutes,
+      exercises: exercisesRef.current
+        .filter((ex) => ex.nameEn.trim() || ex.nameCn.trim())
+        .map((ex) => ({
+          name:     ex.nameEn || ex.nameCn,
+          name_cn:  ex.nameCn || ex.nameEn,
+          sets:     ex.sets.length,
+          reps:     parseInt(ex.sets[0]?.reps) || 1,
+          weight_kg: parseFloat(ex.sets[0]?.weight_kg) || null,
+          set_list: ex.sets
+            .filter((s) => s.reps || s.weight_kg || s.duration_min || s.distance_km)
+            .map((s, i) => ({
+              set_number:   i + 1,
+              weight_kg:    s.weight_kg   ? parseFloat(s.weight_kg)   : null,
+              reps:         s.reps        ? parseInt(s.reps)          : null,
+              duration_min: s.duration_min ? parseFloat(s.duration_min) : null,
+              distance_km:  s.distance_km  ? parseFloat(s.distance_km)  : null,
+              notes:        s.notes || null,
+              rpe:          s.rpe ? parseFloat(s.rpe) : null,
+              rir:          s.rir ? parseInt(s.rir) : null,
+            })),
+        })),
+    }
   }
 
   function buildPayload() {
@@ -519,6 +636,21 @@ export default function LogPage() {
           <div className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />Recording
           </div>
+          {/* Auto-save status indicator */}
+          {autoSaveStatus !== 'idle' && (
+            <div
+              className="mt-1.5 text-[11px] font-medium transition-opacity"
+              style={{
+                color: autoSaveStatus === 'saved' ? '#4ade80'
+                     : autoSaveStatus === 'saving' ? 'var(--text-muted)'
+                     : '#f87171',
+              }}
+            >
+              {autoSaveStatus === 'saving' && '⟳ Auto-saving…'}
+              {autoSaveStatus === 'saved' && '✓ Saved'}
+              {autoSaveStatus === 'error' && '⚠ Auto-save failed'}
+            </div>
+          )}
         </div>
 
         <div className="max-w-xl mx-auto px-4 pb-8 space-y-4">
@@ -582,6 +714,17 @@ export default function LogPage() {
             </button>
             {!isHolding && phase === 'active' && (
               <p className="text-center text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Hold for 5 seconds to save</p>
+            )}
+            {/* Discard button */}
+            {phase === 'active' && !isHolding && (
+              <button
+                type="button"
+                onClick={handleDiscard}
+                className="w-full mt-3 rounded-2xl py-3 text-sm font-semibold transition-all active:scale-95"
+                style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              >
+                🗑 Discard Session
+              </button>
             )}
           </div>
 
