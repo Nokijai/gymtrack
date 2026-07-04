@@ -330,23 +330,53 @@ def init_db():
                 """), {"ex_name": ex_name, "muscle_id": muscle_id, "is_primary": is_primary})
         conn.commit()
 
+    import json as _json
+
+    # Persistent credentials backup path — same directory as the DB file.
+    # This acts as a safety net: if the DB is ever wiped (e.g. permissions issue
+    # on the bind-mount), we restore the real hashed passwords instead of
+    # re-seeding with hardcoded defaults.
+    CREDENTIALS_BACKUP = os.path.join(os.path.dirname(DB_PATH), ".credentials_backup")
+
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
-            # SECURITY NOTE: These are bootstrap/seed accounts created only on first deploy
-            # (when the database is empty). The plaintext passwords below are used once to
-            # generate bcrypt hashes and are never stored. All users — especially 'noki'
-            # (admin) — MUST change their passwords via the admin panel immediately after
-            # first login. These defaults are well-known in source code and must not be
-            # left in place on a production deployment.
-            users_data = [
-                ("dennis", "dennis123", False),
-                ("cyrus", "cyrus123", False),
-                ("noki", "noki123", True),
-            ]
-            for username, password, is_admin in users_data:
-                hashed = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
-                db.add(User(username=username, hashed_password=hashed, is_admin=is_admin))
-            db.commit()
+            if os.path.exists(CREDENTIALS_BACKUP):
+                # DB was wiped but backup exists — restore real hashed passwords.
+                print("init_db: DB empty but credentials backup found — restoring from backup.")
+                with open(CREDENTIALS_BACKUP, "r") as _f:
+                    _backup = _json.load(_f)
+                for _username, _hashed_pw in _backup.items():
+                    _is_admin = (_username == "noki")
+                    db.add(User(username=_username, hashed_password=_hashed_pw, is_admin=_is_admin))
+                db.commit()
+            else:
+                # First ever run — seed with defaults and write a credentials backup.
+                # SECURITY NOTE: These are bootstrap/seed accounts created only on first deploy
+                # (when the database is empty). The plaintext passwords below are used once to
+                # generate bcrypt hashes and are never stored. All users — especially 'noki'
+                # (admin) — MUST change their passwords via the admin panel immediately after
+                # first login. These defaults are well-known in source code and must not be
+                # left in place on a production deployment.
+                print("init_db: DB empty, no backup — seeding default users.")
+                users_data = [
+                    ("dennis", "dennis123", False),
+                    ("cyrus", "cyrus123", False),
+                    ("noki", "noki123", True),
+                ]
+                _backup = {}
+                for username, password, is_admin in users_data:
+                    hashed = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+                    db.add(User(username=username, hashed_password=hashed, is_admin=is_admin))
+                    _backup[username] = hashed
+                db.commit()
+                # Persist hashed passwords so future wipes restore these exact hashes.
+                try:
+                    with open(CREDENTIALS_BACKUP, "w") as _f:
+                        _json.dump(_backup, _f)
+                    print(f"init_db: Credentials backup written to {CREDENTIALS_BACKUP}")
+                except Exception as _e:
+                    print(f"Warning: could not write credentials backup: {_e}")
+        # DB is not empty — do NOT touch passwords under any circumstances.
     finally:
         db.close()

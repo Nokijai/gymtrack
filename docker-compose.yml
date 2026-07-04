@@ -10,6 +10,8 @@ services:
       - /home/noki/gymtrack-data:/app/data
       # Avatar uploads persist across redeploys
       - /home/noki/gymtrack-data/uploads:/app/uploads
+    env_file:
+      - .env
     environment:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - AI_API_KEY=${AI_API_KEY}

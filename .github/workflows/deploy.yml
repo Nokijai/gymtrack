@@ -52,4 +52,6 @@ jobs:
             docker-compose pull
             docker-compose down --remove-orphans
             docker-compose up -d
+            # Ensure DB data directory is owned by noki so containers can read/write the bind-mount
+            sudo chown -R noki:noki /home/noki/gymtrack-data/ 2>/dev/null || true
             docker image prune -f
