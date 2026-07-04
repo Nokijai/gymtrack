@@ -161,17 +161,27 @@ async def update_session(
         WorkoutSession.user_id == current_user.id,
     ).first()
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        # Auto-recover: the session was lost (container restart, DB reset, etc.).
+        # Re-create it with the original ID so the client's draftSessionId stays valid.
+        session = WorkoutSession(
+            id=session_id,
+            user_id=current_user.id,
+            date=data.date,
+            duration_minutes=data.duration_minutes,
+            notes=data.notes,
+        )
+        db.add(session)
+        db.flush()
+    else:
+        # Update session-level fields for existing session
+        session.date = data.date
+        session.duration_minutes = data.duration_minutes
+        session.notes = data.notes
 
-    # Update session-level fields
-    session.date = data.date
-    session.duration_minutes = data.duration_minutes
-    session.notes = data.notes
-
-    # Replace all exercises (cascade deletes sets via ORM relationship)
-    for ex in list(session.exercises):
-        db.delete(ex)
-    db.flush()
+        # Replace all exercises (cascade deletes sets via ORM relationship)
+        for ex in list(session.exercises):
+            db.delete(ex)
+        db.flush()
 
     for ex in data.exercises:
         if ex.set_list:

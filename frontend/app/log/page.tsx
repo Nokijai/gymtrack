@@ -287,8 +287,22 @@ export default function LogPage() {
         const currentDraftId = draftSessionIdRef.current
         let savedId: number
         if (currentDraftId !== null) {
-          const res = await api.patch(`/sessions/${currentDraftId}`, payload)
-          savedId = res.data.id
+          try {
+            const res = await api.patch(`/sessions/${currentDraftId}`, payload)
+            savedId = res.data.id
+          } catch (e: any) {
+            // If the session was lost (e.g. DB wiped), discard the stale ID
+            // and create a fresh session. The backend PATCH also auto-recovers
+            // on 404, but this is a safety net for edge cases.
+            if (e?.response?.status === 404) {
+              setDraftSessionId(null)
+              const res = await api.post('/sessions', payload)
+              savedId = res.data.id
+              setDraftSessionId(savedId)
+            } else {
+              throw e
+            }
+          }
         } else {
           const res = await api.post('/sessions', payload)
           savedId = res.data.id
@@ -335,10 +349,18 @@ export default function LogPage() {
   const didFire      = useRef(false)
 
   const mutation = useMutation({
-    mutationFn: (payload: object) => {
+    mutationFn: async (payload: object) => {
       const currentDraftId = draftSessionIdRef.current
       if (currentDraftId !== null) {
-        return api.patch(`/sessions/${currentDraftId}`, payload)
+        try {
+          return await api.patch(`/sessions/${currentDraftId}`, payload)
+        } catch (e: any) {
+          if (e?.response?.status === 404) {
+            // Session was lost — discard stale ID and create fresh
+            setDraftSessionId(null)
+          }
+          throw e
+        }
       }
       return api.post('/sessions', payload)
     },
