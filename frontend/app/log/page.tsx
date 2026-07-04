@@ -10,26 +10,39 @@ import api from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SetRow {
-  id: string          // local temp id
+  id: string
   weight_kg: string
   reps: string
   duration_min: string
   distance_km: string
   notes: string
+  rpe: string   // RPE 1-10 (optional)
+  rir: string   // Reps in Reserve (optional)
+}
+
+interface NextTarget {
+  weight: number | null
+  reps: number | null
+  sets: number
+  msg: string
+  confidence: number
+  last_weight?: number
+  last_reps?: number
 }
 
 interface ExerciseEntry {
-  id: string          // local temp id
+  id: string
   nameEn: string
   nameCn: string
   isCustom?: boolean
-  // Which fields to show
   showWeight: boolean
   showReps: boolean
   showDuration: boolean
   showDistance: boolean
   showNotes: boolean
   sets: SetRow[]
+  nextTarget?: NextTarget | null
+  loadingTarget?: boolean
 }
 
 const HOLD_DURATION = 5000
@@ -37,7 +50,10 @@ type Phase = 'idle' | 'active' | 'saving' | 'saved'
 const EXERCISES_KEY = 'gymtrack_exercises_v2'
 
 function makeSetRow(): SetRow {
-  return { id: `s_${Date.now()}_${Math.random()}`, weight_kg: '', reps: '', duration_min: '', distance_km: '', notes: '' }
+  return {
+    id: `s_${Date.now()}_${Math.random()}`,
+    weight_kg: '', reps: '', duration_min: '', distance_km: '', notes: '', rpe: '', rir: '',
+  }
 }
 
 function makeEntry(ex: SelectedExercise): ExerciseEntry {
@@ -52,6 +68,8 @@ function makeEntry(ex: SelectedExercise): ExerciseEntry {
     showDistance: false,
     showNotes: false,
     sets: [makeSetRow()],
+    nextTarget: null,
+    loadingTarget: false,
   }
 }
 
@@ -63,6 +81,90 @@ function formatTime(seconds: number): string {
   return [m, s].map((v) => String(v).padStart(2, '0')).join(':')
 }
 
+// ─── Post-Session Debrief Modal ───────────────────────────────────────────────
+function DebriefModal({ sessionId, onClose }: { sessionId: number; onClose: () => void }) {
+  const [text, setText] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.post(`/ai/debrief/${sessionId}`)
+      .then((r) => setText(r.data.debrief_text))
+      .catch(() => setText('Great workout! Keep it up! 💪'))
+      .finally(() => setLoading(false))
+  }, [sessionId])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative rounded-3xl p-7 w-full max-w-sm space-y-5"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <div className="text-center">
+          <div className="text-4xl mb-3">{loading ? '🤖' : '🏆'}</div>
+          <h2 className="text-lg font-bold mb-1">
+            {loading ? '教练正在分析...' : '训练总结'}
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '90%' }} />
+            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '75%' }} />
+            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '82%' }} />
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>
+            {text}
+          </p>
+        )}
+
+        {!loading && (
+          <button
+            onClick={onClose}
+            className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
+            style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 6px 20px var(--accent-glow)' }}
+          >
+            Nice! 💪
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── RPE Dots Selector ────────────────────────────────────────────────────────
+function RPESelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const selected = value ? parseInt(value) : null
+  return (
+    <div className="flex items-center gap-0.5 mt-1">
+      <span className="text-[9px] mr-1" style={{ color: 'var(--text-muted)' }}>RPE</span>
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+        const isSelected = selected !== null && n <= selected
+        const color = selected !== null && n <= selected
+          ? n <= 6 ? '#4ade80' : n <= 8 ? '#fbbf24' : '#f87171'
+          : 'rgba(255,255,255,0.12)'
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(selected === n ? '' : String(n))}
+            className="w-4 h-4 rounded-full transition-all duration-100"
+            style={{ background: color, transform: selected === n ? 'scale(1.3)' : 'scale(1)' }}
+            title={`RPE ${n}`}
+          />
+        )
+      })}
+      {selected && (
+        <span className="text-[9px] ml-1 font-bold"
+          style={{ color: selected <= 6 ? '#4ade80' : selected <= 8 ? '#fbbf24' : '#f87171' }}>
+          {selected}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function LogPage() {
   const router = useRouter()
@@ -71,6 +173,8 @@ export default function LogPage() {
   const { isRunning, startTimestamp, elapsed, startTimer, syncElapsed, stopTimer } = useTimerStore()
   const [phase, setPhase] = useState<Phase>(() => (isRunning ? 'active' : 'idle'))
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [debriefSessionId, setDebriefSessionId] = useState<number | null>(null)
+  const [showDebrief, setShowDebrief] = useState(false)
 
   const [exercises, setExercises] = useState<ExerciseEntry[]>(() => {
     if (typeof window === 'undefined') return []
@@ -108,7 +212,7 @@ export default function LogPage() {
     if (isRunning && phase === 'idle') setPhase('active')
   }, [isRunning, phase])
 
-  // ── Hold-to-confirm ───────────────────────────────────────────────────────
+  // ── Hold-to-confirm ──────────────────────────────────────────────────────
   const [holdProgress, setHoldProgress] = useState(0)
   const [isHolding, setIsHolding] = useState(false)
   const holdStartRef = useRef<number | null>(null)
@@ -117,13 +221,22 @@ export default function LogPage() {
 
   const mutation = useMutation({
     mutationFn: (payload: object) => api.post('/sessions', payload),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       stopTimer()
       try { sessionStorage.removeItem(EXERCISES_KEY) } catch {}
-      setPhase('saved')
-      setTimeout(() => router.push('/dashboard'), 1800)
+
+      // Show debrief if session was created
+      const sessionId = response.data?.id
+      if (sessionId) {
+        setDebriefSessionId(sessionId)
+        setShowDebrief(true)
+        setPhase('saved')
+      } else {
+        setPhase('saved')
+        setTimeout(() => router.push('/dashboard'), 1800)
+      }
     },
     onError: () => { setPhase('active') },
   })
@@ -159,6 +272,8 @@ export default function LogPage() {
               duration_min: s.duration_min ? parseFloat(s.duration_min) : null,
               distance_km:  s.distance_km  ? parseFloat(s.distance_km)  : null,
               notes:        s.notes || null,
+              rpe:          s.rpe ? parseFloat(s.rpe) : null,
+              rir:          s.rir ? parseInt(s.rir) : null,
             })),
         })),
     }
@@ -196,8 +311,28 @@ export default function LogPage() {
   }, [])
 
   // ── Exercise / Set mutations ──────────────────────────────────────────────
-  function addExercise(ex: SelectedExercise) {
-    setExercises((prev) => [...prev, makeEntry(ex)])
+  async function addExercise(ex: SelectedExercise) {
+    const entry = makeEntry(ex)
+    // Mark as loading target
+    entry.loadingTarget = true
+    setExercises((prev) => [...prev, entry])
+
+    // Fetch AI target in background
+    try {
+      const encodedName = encodeURIComponent(ex.nameEn || ex.nameCn)
+      const res = await api.get(`/coach/next-targets/${encodedName}`)
+      setExercises((prev) =>
+        prev.map((e) =>
+          e.id === entry.id ? { ...e, nextTarget: res.data, loadingTarget: false } : e
+        )
+      )
+    } catch {
+      setExercises((prev) =>
+        prev.map((e) =>
+          e.id === entry.id ? { ...e, loadingTarget: false } : e
+        )
+      )
+    }
   }
 
   function removeExercise(id: string) {
@@ -214,7 +349,6 @@ export default function LogPage() {
     setExercises((prev) =>
       prev.map((e) => {
         if (e.id !== exId) return e
-        // Copy last set values as template
         const lastSet = e.sets[e.sets.length - 1]
         const newSet: SetRow = {
           ...makeSetRow(),
@@ -230,7 +364,7 @@ export default function LogPage() {
     setExercises((prev) =>
       prev.map((e) => {
         if (e.id !== exId) return e
-        if (e.sets.length <= 1) return e // keep at least 1 set
+        if (e.sets.length <= 1) return e
         return { ...e, sets: e.sets.filter((s) => s.id !== setId) }
       })
     )
@@ -282,12 +416,21 @@ export default function LogPage() {
   if (phase === 'saved') {
     return (
       <AuthGuard>
+        {showDebrief && debriefSessionId && (
+          <DebriefModal
+            sessionId={debriefSessionId}
+            onClose={() => {
+              setShowDebrief(false)
+              router.push('/dashboard')
+            }}
+          />
+        )}
         <div className="min-h-screen flex flex-col items-center justify-center gap-5 page-fade"
           style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
           <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
             style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.4)' }}>✓</div>
           <h2 className="text-2xl font-bold text-green-400">Workout Saved!</h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>XP added to your profile</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Getting your AI coaching debrief...</p>
         </div>
       </AuthGuard>
     )
@@ -299,7 +442,6 @@ export default function LogPage() {
       <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
         <Nav />
 
-        {/* ExercisePicker modal */}
         <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onSelect={addExercise} />
 
         {/* Timer hero */}
@@ -337,11 +479,7 @@ export default function LogPage() {
             type="button"
             onClick={() => setPickerOpen(true)}
             className="w-full rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '2px dashed var(--border)',
-              color: 'var(--accent)',
-            }}
+            style={{ background: 'var(--bg-surface)', border: '2px dashed var(--border)', color: 'var(--accent)' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -404,7 +542,13 @@ interface ExerciseCardProps {
 function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemoveSet, onUpdateSet }: ExerciseCardProps) {
   const [showOptions, setShowOptions] = useState(false)
 
-  const fields: Array<{ key: keyof Pick<ExerciseEntry, 'showWeight' | 'showReps' | 'showDuration' | 'showDistance' | 'showNotes'>; label: string; setField: keyof SetRow; inputType: string; placeholder: string }> = [
+  const fields: Array<{
+    key: keyof Pick<ExerciseEntry, 'showWeight' | 'showReps' | 'showDuration' | 'showDistance' | 'showNotes'>
+    label: string
+    setField: keyof SetRow
+    inputType: string
+    placeholder: string
+  }> = [
     { key: 'showWeight',   label: 'Weight (kg)', setField: 'weight_kg',    inputType: 'number', placeholder: 'kg' },
     { key: 'showReps',     label: 'Reps',        setField: 'reps',         inputType: 'number', placeholder: 'reps' },
     { key: 'showDuration', label: 'Duration',    setField: 'duration_min', inputType: 'number', placeholder: 'min' },
@@ -423,45 +567,57 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{entry.nameEn}</div>
           )}
         </div>
-        {/* Options toggle */}
-        <button
-          onClick={() => setShowOptions(!showOptions)}
+        <button onClick={() => setShowOptions(!showOptions)}
           className="p-2 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)', background: showOptions ? 'var(--bg-elevated)' : 'transparent' }}
-          title="Toggle fields"
-        >
+          style={{ color: 'var(--text-muted)', background: showOptions ? 'var(--bg-elevated)' : 'transparent' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
           </svg>
         </button>
-        {/* Remove exercise */}
-        <button
-          onClick={onRemove}
-          className="p-2 rounded-lg transition-colors"
+        <button onClick={onRemove} className="p-2 rounded-lg transition-colors"
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-        >
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
           </svg>
         </button>
       </div>
 
+      {/* AI Target hint */}
+      {(entry.loadingTarget || entry.nextTarget) && (
+        <div className="px-4 py-2 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(59,130,246,0.04)' }}>
+          {entry.loadingTarget ? (
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full border border-t-transparent animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>AI calculating targets...</span>
+            </div>
+          ) : entry.nextTarget?.weight ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--accent)' }}>🤖</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                AI suggests:{' '}
+                <span className="font-semibold" style={{ color: 'var(--accent)' }}>
+                  {entry.nextTarget.weight}kg × {entry.nextTarget.reps}
+                </span>
+                {' '}based on last session
+              </span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {/* Field toggle options */}
       {showOptions && (
         <div className="px-4 py-3 border-b flex flex-wrap gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
           {fields.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => onToggleField(f.key)}
+            <button key={f.key} onClick={() => onToggleField(f.key)}
               className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
               style={{
                 background: entry[f.key] ? 'var(--accent)' : 'var(--bg-surface)',
                 color: entry[f.key] ? '#fff' : 'var(--text-muted)',
                 border: `1px solid ${entry[f.key] ? 'transparent' : 'var(--border)'}`,
-              }}
-            >
+              }}>
               {f.label}
             </button>
           ))}
@@ -485,50 +641,69 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
       {/* Set rows */}
       <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
         {entry.sets.map((set, setIdx) => (
-          <div key={set.id} className="grid items-center px-4 py-2 gap-1" style={{
-            gridTemplateColumns: `24px ${activeFields.map(() => '1fr').join(' ')} 36px`,
-          }}>
-            {/* Set number */}
-            <span className="text-xs font-bold text-center" style={{ color: 'var(--text-muted)' }}>{setIdx + 1}</span>
+          <div key={set.id} className="px-4 pt-2 pb-1">
+            <div className="grid items-center gap-1" style={{
+              gridTemplateColumns: `24px ${activeFields.map(() => '1fr').join(' ')} 36px`,
+            }}>
+              {/* Set number */}
+              <span className="text-xs font-bold text-center" style={{ color: 'var(--text-muted)' }}>{setIdx + 1}</span>
 
-            {/* Active field inputs */}
-            {activeFields.map((f) => (
-              <input
-                key={f.key}
-                type={f.inputType}
-                className="w-full rounded-lg px-2 py-2 text-sm text-center border min-h-[40px] focus:border-blue-500"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
-                placeholder={f.placeholder}
-                value={set[f.setField]}
-                onChange={(e) => onUpdateSet(set.id, f.setField, e.target.value)}
-                min={f.inputType === 'number' ? '0' : undefined}
-                step={f.setField === 'weight_kg' ? '0.5' : f.setField === 'reps' ? '1' : '0.1'}
+              {/* Active field inputs */}
+              {activeFields.map((f) => (
+                <input
+                  key={f.key}
+                  type={f.inputType}
+                  className="w-full rounded-lg px-2 py-2 text-sm text-center border min-h-[40px] focus:border-blue-500"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                  placeholder={f.placeholder}
+                  value={set[f.setField]}
+                  onChange={(e) => onUpdateSet(set.id, f.setField, e.target.value)}
+                  min={f.inputType === 'number' ? '0' : undefined}
+                  step={f.setField === 'weight_kg' ? '0.5' : f.setField === 'reps' ? '1' : '0.1'}
+                />
+              ))}
+
+              {/* Remove set */}
+              <button onClick={() => onRemoveSet(set.id)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg mx-auto"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* RPE + RIR row */}
+            <div className="flex items-center gap-3 ml-6 mb-1.5">
+              <RPESelector
+                value={set.rpe}
+                onChange={(v) => onUpdateSet(set.id, 'rpe', v)}
               />
-            ))}
-
-            {/* Remove set */}
-            <button
-              onClick={() => onRemoveSet(set.id)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg mx-auto"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>RIR</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  className="w-10 rounded px-1 py-0.5 text-[11px] text-center border"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                  placeholder="—"
+                  value={set.rir}
+                  onChange={(e) => onUpdateSet(set.id, 'rir', e.target.value)}
+                />
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Add set */}
       <div className="px-4 py-2.5">
-        <button
-          onClick={onAddSet}
+        <button onClick={onAddSet}
           className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg"
-          style={{ color: 'var(--accent)', background: 'rgba(59,130,246,0.08)' }}
-        >
+          style={{ color: 'var(--accent)', background: 'rgba(59,130,246,0.08)' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>

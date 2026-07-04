@@ -35,6 +35,11 @@ const icons = {
       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
     </svg>
   ),
+  recovery: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+  ),
   admin: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2L3 7v5c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7L12 2z"/>
@@ -57,6 +62,7 @@ export default function Nav() {
     { href: '/dashboard', label: 'Dashboard', icon: icons.dashboard },
     { href: '/log', label: 'Workout', icon: icons.log },
     { href: '/leaderboard', label: 'Ranks', icon: icons.leaderboard },
+    { href: '/recovery', label: 'Recovery', icon: icons.recovery },
     { href: '/profile', label: 'Profile', icon: icons.profile },
     ...(user?.is_admin ? [{ href: '/admin', label: 'Admin', icon: icons.admin }] : []),
   ]

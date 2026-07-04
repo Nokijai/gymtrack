@@ -12,6 +12,7 @@ services:
       - /home/noki/gymtrack-data/uploads:/app/uploads
     environment:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - AI_API_KEY=${AI_API_KEY}
     restart: unless-stopped
 
   frontend:

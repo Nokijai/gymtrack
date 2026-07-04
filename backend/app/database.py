@@ -80,8 +80,41 @@ class ExerciseSet(Base):
     duration_min = Column(Float, nullable=True)
     distance_km = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)
+    # AI coach fields
+    rpe = Column(Float, nullable=True)          # Rate of Perceived Exertion 1-10
+    rir = Column(Integer, nullable=True)         # Reps in Reserve
+    target_weight = Column(Float, nullable=True) # AI-suggested target weight
+    target_reps = Column(Integer, nullable=True) # AI-suggested target reps
 
     exercise = relationship("Exercise", back_populates="set_list")
+
+
+class MuscleGroup(Base):
+    """Muscle group definitions with fatigue half-life."""
+    __tablename__ = "muscle_groups"
+    id = Column(String, primary_key=True)
+    name_en = Column(String, nullable=False)
+    name_cn = Column(String, nullable=False)
+    category = Column(String, nullable=True)
+    half_life_hours = Column(Integer, default=48)
+
+
+class ExerciseMuscleImpact(Base):
+    """Maps exercises (by name) to muscle groups with primary/secondary."""
+    __tablename__ = "exercise_muscle_impact"
+    exercise_name = Column(String, primary_key=True)
+    muscle_group_id = Column(String, ForeignKey("muscle_groups.id"), primary_key=True)
+    is_primary = Column(Boolean, default=True)
+
+
+class ReadinessLog(Base):
+    """Daily readiness check-in scores."""
+    __tablename__ = "readiness_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    logged_at = Column(DateTime, default=datetime.datetime.utcnow)
+    score = Column(Integer, nullable=False)  # 1-5
+    notes = Column(Text, nullable=True)
 
 
 def get_db():
@@ -181,34 +214,120 @@ def recalculate_streak(db, user: User) -> None:
     user.longest_streak = max(user.longest_streak, longest)
 
 
+# ── Muscle group seed data ───────────────────────────────────────────────────
+MUSCLE_GROUPS_SEED = [
+    # (id, name_en, name_cn, category, half_life_hours)
+    # Large compound muscles → 72h; smaller isolation muscles → 48h
+    ("chest",        "Chest",            "胸肌",   "push",  72),
+    ("back_upper",   "Upper Back",       "上背",   "pull",  72),
+    ("back_lower",   "Lower Back",       "下背",   "pull",  72),
+    ("shoulders",    "Shoulders",        "肩膀",   "push",  48),
+    ("biceps",       "Biceps",           "二头肌", "pull",  48),
+    ("triceps",      "Triceps",          "三头肌", "push",  48),
+    ("forearms",     "Forearms",         "前臂",   "pull",  48),
+    ("quads",        "Quadriceps",       "股四头肌","legs", 72),
+    ("hamstrings",   "Hamstrings",       "腘绳肌", "legs",  72),
+    ("glutes",       "Glutes",           "臀肌",   "legs",  72),
+    ("calves",       "Calves",           "小腿",   "legs",  48),
+    ("core",         "Core",             "核心",   "core",  48),
+    ("cardio",       "Cardiovascular",   "心肺",   "cardio",24),
+]
+
+# exercise_name → [(muscle_group_id, is_primary)]
+EXERCISE_MUSCLE_MAPPINGS = {
+    "bench press":          [("chest", True),  ("triceps", False), ("shoulders", False)],
+    "bench_press":          [("chest", True),  ("triceps", False), ("shoulders", False)],
+    "卧推":                  [("chest", True),  ("triceps", False), ("shoulders", False)],
+    "squat":                [("quads", True),  ("hamstrings", False), ("glutes", False)],
+    "深蹲":                  [("quads", True),  ("hamstrings", False), ("glutes", False)],
+    "deadlift":             [("back_lower", True), ("hamstrings", False), ("glutes", False)],
+    "硬拉":                  [("back_lower", True), ("hamstrings", False), ("glutes", False)],
+    "pull up":              [("back_upper", True), ("biceps", False)],
+    "pull_up":              [("back_upper", True), ("biceps", False)],
+    "引体向上":               [("back_upper", True), ("biceps", False)],
+    "overhead press":       [("shoulders", True), ("triceps", False)],
+    "overhead_press":       [("shoulders", True), ("triceps", False)],
+    "ohp":                  [("shoulders", True), ("triceps", False)],
+    "军推":                  [("shoulders", True), ("triceps", False)],
+    "row":                  [("back_upper", True), ("biceps", False)],
+    "barbell row":          [("back_upper", True), ("biceps", False)],
+    "划船":                  [("back_upper", True), ("biceps", False)],
+    "bicep curl":           [("biceps", True)],
+    "bicep_curl":           [("biceps", True)],
+    "弯举":                  [("biceps", True)],
+    "tricep pushdown":      [("triceps", True)],
+    "tricep_pushdown":      [("triceps", True)],
+    "三头下压":               [("triceps", True)],
+    "leg press":            [("quads", True), ("hamstrings", False)],
+    "leg_press":            [("quads", True), ("hamstrings", False)],
+    "腿举":                  [("quads", True), ("hamstrings", False)],
+    "romanian deadlift":    [("hamstrings", True), ("glutes", False)],
+    "romanian_deadlift":    [("hamstrings", True), ("glutes", False)],
+    "rdl":                  [("hamstrings", True), ("glutes", False)],
+    "罗马尼亚硬拉":            [("hamstrings", True), ("glutes", False)],
+    "plank":                [("core", True)],
+    "平板支撑":               [("core", True)],
+    "calf raise":           [("calves", True)],
+    "calf_raise":           [("calves", True)],
+    "提踵":                  [("calves", True)],
+    "running":              [("cardio", True)],
+    "跑步":                  [("cardio", True)],
+    "dumbbell press":       [("chest", True), ("triceps", False), ("shoulders", False)],
+    "哑铃卧推":               [("chest", True), ("triceps", False), ("shoulders", False)],
+    "dumbbell curl":        [("biceps", True)],
+    "哑铃弯举":               [("biceps", True)],
+    "lat pulldown":         [("back_upper", True), ("biceps", False)],
+    "下拉":                  [("back_upper", True), ("biceps", False)],
+    "push up":              [("chest", True), ("triceps", False)],
+    "俯卧撑":                 [("chest", True), ("triceps", False)],
+    "lunge":                [("quads", True), ("glutes", False)],
+    "弓步蹲":                 [("quads", True), ("glutes", False)],
+    "hip thrust":           [("glutes", True), ("hamstrings", False)],
+    "臀推":                  [("glutes", True), ("hamstrings", False)],
+}
+
+
 def init_db():
     import bcrypt as _bcrypt
     Base.metadata.create_all(bind=engine)
 
     # Migration: add is_admin column if it doesn't exist yet (SQLite-safe)
     with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
-            conn.commit()
-        except OperationalError:
-            pass  # column already exists — safe to ignore
-
-        # Migration: add avatar_url column if it doesn't exist yet
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR"))
-            conn.commit()
-        except OperationalError:
-            pass  # column already exists — safe to ignore
-
-        # Migration: add name_cn column to exercises table
-        try:
-            conn.execute(text("ALTER TABLE exercises ADD COLUMN name_cn VARCHAR"))
-            conn.commit()
-        except OperationalError:
-            pass  # column already exists — safe to ignore
+        for col_ddl in [
+            "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN avatar_url VARCHAR",
+            "ALTER TABLE exercises ADD COLUMN name_cn VARCHAR",
+            # New AI coach columns on exercise_sets
+            "ALTER TABLE exercise_sets ADD COLUMN rpe REAL",
+            "ALTER TABLE exercise_sets ADD COLUMN rir INTEGER",
+            "ALTER TABLE exercise_sets ADD COLUMN target_weight REAL",
+            "ALTER TABLE exercise_sets ADD COLUMN target_reps INTEGER",
+        ]:
+            try:
+                conn.execute(text(col_ddl))
+                conn.commit()
+            except OperationalError:
+                pass  # column already exists — safe to ignore
 
         # Ensure noki is always admin
         conn.execute(text("UPDATE users SET is_admin=1 WHERE username='noki'"))
+        conn.commit()
+
+        # ── Seed muscle groups ───────────────────────────────────────────────
+        for mg_id, name_en, name_cn, category, half_life in MUSCLE_GROUPS_SEED:
+            conn.execute(text("""
+                INSERT OR IGNORE INTO muscle_groups (id, name_en, name_cn, category, half_life_hours)
+                VALUES (:id, :name_en, :name_cn, :category, :half_life)
+            """), {"id": mg_id, "name_en": name_en, "name_cn": name_cn, "category": category, "half_life": half_life})
+        conn.commit()
+
+        # ── Seed exercise → muscle mappings ─────────────────────────────────
+        for ex_name, mappings in EXERCISE_MUSCLE_MAPPINGS.items():
+            for muscle_id, is_primary in mappings:
+                conn.execute(text("""
+                    INSERT OR IGNORE INTO exercise_muscle_impact (exercise_name, muscle_group_id, is_primary)
+                    VALUES (:ex_name, :muscle_id, :is_primary)
+                """), {"ex_name": ex_name, "muscle_id": muscle_id, "is_primary": is_primary})
         conn.commit()
 
     db = SessionLocal()
