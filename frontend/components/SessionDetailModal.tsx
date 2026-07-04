@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,11 +81,15 @@ function exerciseEmoji(name: string): string {
   return '💪'
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function SessionDetailModal({ sessionId, onClose }: Props) {
+  const { user } = useAuthStore()
   const [detail, setDetail]   = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editDate, setEditDate] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (sessionId === null) { setDetail(null); return }
@@ -126,15 +131,35 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 z-10"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
           <h2 className="font-bold text-base">Session Details</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Edit button — everyone can edit their own sessions */}
+            <button
+              onClick={() => {
+                if (detail) {
+                  setEditDate(detail.date)
+                  setEditDuration(String(detail.duration_minutes))
+                  setEditing(!editing)
+                }
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors text-xs font-bold"
+              style={{
+                color: editing ? '#fff' : 'var(--text-muted)',
+                background: editing ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
+              }}
+              title={editing ? 'Cancel edit' : 'Edit session'}
+            >
+              {editing ? '✕' : '✏️'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+              style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-5">
@@ -253,6 +278,77 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
                   accent="#fbbf24"
                 />
               </div>
+
+              async function handleSaveEdit() {
+              if (!detail) return
+              setSaving(true)
+              try {
+                await api.patch(`/sessions/${detail.id}`, {
+                  date: editDate,
+                  duration_minutes: parseInt(editDuration) || 1,
+                  exercises: detail.exercises.map(ex => ({
+                    name: ex.name,
+                    name_cn: ex.name_cn || '',
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    weight_kg: ex.weight_kg,
+                    set_list: ex.set_list.map(s => ({
+                      set_number: s.set_number,
+                      weight_kg: s.weight_kg,
+                      reps: s.reps,
+                      duration_min: s.duration_min,
+                      distance_km: s.distance_km,
+                      notes: s.notes,
+                    })),
+                  })),
+                })
+                // Refresh detail
+                const r = await api.get(`/sessions/${detail.id}`)
+                setDetail(r.data)
+                setEditing(false)
+              } catch {
+                setError('Failed to save changes')
+              } finally {
+                setSaving(false)
+              }
+            }
+
+            {/* Edit form */}
+            {editing && (
+              <div className="rounded-xl p-4 mb-4 space-y-3" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--accent)' }}>Edit Session</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Date</label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={e => setEditDate(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2 text-sm border"
+                      style={{ background: 'var(--bg-base)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Duration (min)</label>
+                    <input
+                      type="number"
+                      value={editDuration}
+                      onChange={e => setEditDuration(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2 text-sm border"
+                      style={{ background: 'var(--bg-base)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="w-full rounded-xl py-2.5 text-sm font-bold transition-all"
+                  style={{ background: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            )}
 
               <button
                 onClick={onClose}
