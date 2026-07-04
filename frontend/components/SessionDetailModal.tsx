@@ -100,6 +100,40 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
       .finally(() => setLoading(false))
   }, [sessionId])
 
+  async function handleSaveEdit() {
+    if (!detail) return
+    setSaving(true)
+    try {
+      await api.patch(`/sessions/${detail.id}`, {
+        date: editDate,
+        duration_minutes: parseInt(editDuration) || 1,
+        exercises: detail.exercises.map(ex => ({
+          name: ex.name,
+          name_cn: ex.name_cn || '',
+          sets: ex.sets,
+          reps: ex.reps,
+          weight_kg: ex.weight_kg,
+          set_list: ex.set_list.map(s => ({
+            set_number: s.set_number,
+            weight_kg: s.weight_kg,
+            reps: s.reps,
+            duration_min: s.duration_min,
+            distance_km: s.distance_km,
+            notes: s.notes,
+          })),
+        })),
+      })
+      // Refresh detail
+      const r = await api.get(`/sessions/${detail.id}`)
+      setDetail(r.data)
+      setEditing(false)
+    } catch {
+      setError('Failed to save changes')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (sessionId === null) return null
 
   // Compute totals
@@ -279,41 +313,7 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
                 />
               </div>
 
-              async function handleSaveEdit() {
-              if (!detail) return
-              setSaving(true)
-              try {
-                await api.patch(`/sessions/${detail.id}`, {
-                  date: editDate,
-                  duration_minutes: parseInt(editDuration) || 1,
-                  exercises: detail.exercises.map(ex => ({
-                    name: ex.name,
-                    name_cn: ex.name_cn || '',
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    weight_kg: ex.weight_kg,
-                    set_list: ex.set_list.map(s => ({
-                      set_number: s.set_number,
-                      weight_kg: s.weight_kg,
-                      reps: s.reps,
-                      duration_min: s.duration_min,
-                      distance_km: s.distance_km,
-                      notes: s.notes,
-                    })),
-                  })),
-                })
-                // Refresh detail
-                const r = await api.get(`/sessions/${detail.id}`)
-                setDetail(r.data)
-                setEditing(false)
-              } catch {
-                setError('Failed to save changes')
-              } finally {
-                setSaving(false)
-              }
-            }
-
-            {/* Edit form */}
+              {/* Edit form */}
             {editing && (
               <div className="rounded-xl p-4 mb-4 space-y-3" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
                 <h3 className="text-sm font-bold" style={{ color: 'var(--accent)' }}>Edit Session</h3>
