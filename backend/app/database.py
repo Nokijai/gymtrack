@@ -60,11 +60,28 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
     name = Column(String, nullable=False)
-    sets = Column(Integer, nullable=False)
-    reps = Column(Integer, nullable=False)
+    name_cn = Column(String, nullable=True)          # Chinese name
+    sets = Column(Integer, nullable=False, default=1)
+    reps = Column(Integer, nullable=False, default=1)
     weight_kg = Column(Float, nullable=True)
 
     session = relationship("WorkoutSession", back_populates="exercises")
+    set_list = relationship("ExerciseSet", back_populates="exercise", cascade="all, delete-orphan", order_by="ExerciseSet.set_number")
+
+
+class ExerciseSet(Base):
+    """Granular per-set data: weight, reps, duration, distance, notes."""
+    __tablename__ = "exercise_sets"
+    id = Column(Integer, primary_key=True, index=True)
+    exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
+    set_number = Column(Integer, nullable=False, default=1)
+    weight_kg = Column(Float, nullable=True)
+    reps = Column(Integer, nullable=True)
+    duration_min = Column(Float, nullable=True)
+    distance_km = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    exercise = relationship("Exercise", back_populates="set_list")
 
 
 def get_db():
@@ -94,10 +111,16 @@ def recalculate_xp(db, user: User) -> None:
     all_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user.id).all()
     total_xp = 0.0
     for s in all_sessions:
-        base_xp = s.duration_minutes
+        base_xp = float(s.duration_minutes)
         exercises = db.query(Exercise).filter(Exercise.session_id == s.id).all()
         for e in exercises:
-            base_xp += e.sets * e.reps * 0.1
+            # Use granular set_list if available, otherwise legacy sets*reps
+            if e.set_list:
+                for es in e.set_list:
+                    r = es.reps or 0
+                    base_xp += r * 0.1
+            else:
+                base_xp += (e.sets or 1) * (e.reps or 1) * 0.1
         total_xp += base_xp
     user.xp = int(total_xp)
     user.level = calculate_level(int(total_xp))
@@ -173,6 +196,13 @@ def init_db():
         # Migration: add avatar_url column if it doesn't exist yet
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR"))
+            conn.commit()
+        except OperationalError:
+            pass  # column already exists — safe to ignore
+
+        # Migration: add name_cn column to exercises table
+        try:
+            conn.execute(text("ALTER TABLE exercises ADD COLUMN name_cn VARCHAR"))
             conn.commit()
         except OperationalError:
             pass  # column already exists — safe to ignore

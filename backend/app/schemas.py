@@ -52,11 +52,54 @@ class ChangeMyPasswordRequest(BaseModel):
     new_password: str
 
 
+# ─── Exercise set (new granular model) ───────────────────────────────────────
+class ExerciseSetCreate(BaseModel):
+    set_number: int
+    weight_kg: Optional[float] = None
+    reps: Optional[int] = None
+    duration_min: Optional[float] = None
+    distance_km: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class ExerciseSetResponse(BaseModel):
+    id: int
+    set_number: int
+    weight_kg: Optional[float] = None
+    reps: Optional[int] = None
+    duration_min: Optional[float] = None
+    distance_km: Optional[float] = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Exercise (updated to support sets list) ──────────────────────────────────
 class ExerciseCreate(BaseModel):
     name: str
+    name_cn: Optional[str] = None          # Chinese name
+    # Legacy flat fields — still accepted for backward compat
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    weight_kg: Optional[float] = None
+    # New granular sets list
+    set_list: list[ExerciseSetCreate] = []
+
+
+class ExerciseResponse(BaseModel):
+    id: int
+    name: str
+    name_cn: Optional[str] = None
+    # Legacy aggregated fields (computed from set_list or stored directly)
     sets: int
     reps: int
     weight_kg: Optional[float] = None
+    # Granular sets
+    set_list: list[ExerciseSetResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 class SessionCreate(BaseModel):
@@ -64,17 +107,6 @@ class SessionCreate(BaseModel):
     duration_minutes: int
     notes: Optional[str] = None
     exercises: list[ExerciseCreate] = []
-
-
-class ExerciseResponse(BaseModel):
-    id: int
-    name: str
-    sets: int
-    reps: int
-    weight_kg: Optional[float] = None
-
-    class Config:
-        from_attributes = True
 
 
 class SessionResponse(BaseModel):

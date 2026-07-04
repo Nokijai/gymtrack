@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.database import get_db, User, WorkoutSession, Exercise, recalculate_xp, recalculate_streak
+from app.database import get_db, User, WorkoutSession, Exercise, ExerciseSet, recalculate_xp, recalculate_streak
 from app.schemas import SessionCreate, SessionResponse
 from app.auth import get_current_user
 from app.sse import broadcast
@@ -43,9 +43,15 @@ def get_session(
     exercises = db.query(Exercise).filter(Exercise.session_id == session.id).all()
 
     # Calculate XP earned for this session
-    base_xp = session.duration_minutes
+    base_xp = float(session.duration_minutes)
     for e in exercises:
-        base_xp += e.sets * e.reps * 0.1
+        # Count volume from granular set_list if available, else legacy sets*reps
+        if e.set_list:
+            for s in e.set_list:
+                r = s.reps or 0
+                base_xp += r * 0.1
+        else:
+            base_xp += (e.sets or 1) * (e.reps or 1) * 0.1
     xp_earned = int(base_xp)
 
     return {
@@ -57,9 +63,22 @@ def get_session(
             {
                 "id": e.id,
                 "name": e.name,
-                "sets": e.sets,
-                "reps": e.reps,
+                "name_cn": e.name_cn,
+                "sets": e.sets or len(e.set_list) or 1,
+                "reps": e.reps or (e.set_list[0].reps if e.set_list else 1) or 1,
                 "weight_kg": e.weight_kg,
+                "set_list": [
+                    {
+                        "id": s.id,
+                        "set_number": s.set_number,
+                        "weight_kg": s.weight_kg,
+                        "reps": s.reps,
+                        "duration_min": s.duration_min,
+                        "distance_km": s.distance_km,
+                        "notes": s.notes,
+                    }
+                    for s in (e.set_list or [])
+                ],
             }
             for e in exercises
         ],
@@ -82,13 +101,40 @@ async def create_session(
     db.flush()
 
     for ex in data.exercises:
-        db.add(Exercise(
+        # Compute legacy aggregate fields from set_list if provided
+        if ex.set_list:
+            agg_sets = len(ex.set_list)
+            # Use first set's reps as legacy reps, or 1
+            agg_reps = ex.set_list[0].reps if ex.set_list[0].reps is not None else 1
+            # Use first set's weight as legacy weight
+            agg_weight = ex.set_list[0].weight_kg
+        else:
+            agg_sets = ex.sets or 1
+            agg_reps = ex.reps or 1
+            agg_weight = ex.weight_kg
+
+        db_exercise = Exercise(
             session_id=session.id,
             name=ex.name,
-            sets=ex.sets,
-            reps=ex.reps,
-            weight_kg=ex.weight_kg,
-        ))
+            name_cn=ex.name_cn,
+            sets=agg_sets,
+            reps=agg_reps,
+            weight_kg=agg_weight,
+        )
+        db.add(db_exercise)
+        db.flush()
+
+        # Save granular sets
+        for i, s in enumerate(ex.set_list):
+            db.add(ExerciseSet(
+                exercise_id=db_exercise.id,
+                set_number=s.set_number or (i + 1),
+                weight_kg=s.weight_kg,
+                reps=s.reps,
+                duration_min=s.duration_min,
+                distance_km=s.distance_km,
+                notes=s.notes,
+            ))
 
     recalculate_xp(db, current_user)
     recalculate_streak(db, current_user)
