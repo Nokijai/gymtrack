@@ -47,7 +47,7 @@ interface ExerciseEntry {
 
 const HOLD_DURATION = 5000
 type Phase = 'idle' | 'active' | 'saving' | 'saved'
-const EXERCISES_KEY = 'gymtrack_exercises_v2'
+const EXERCISES_KEY = 'gymtrack_active_session_exercises'
 
 function makeSetRow(): SetRow {
   return {
@@ -82,50 +82,107 @@ function formatTime(seconds: number): string {
 }
 
 // ─── Post-Session Debrief Modal ───────────────────────────────────────────────
-function DebriefModal({ sessionId, onClose }: { sessionId: number; onClose: () => void }) {
-  const [text, setText] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+type DebriefPhase = 'ask' | 'loading' | 'show'
 
-  useEffect(() => {
-    api.post(`/ai/debrief/${sessionId}`)
-      .then((r) => setText(r.data.debrief_text))
-      .catch(() => setText('Great workout! Keep it up! 💪'))
-      .finally(() => setLoading(false))
-  }, [sessionId])
+function DebriefModal({
+  sessionId,
+  onClose,
+  onSkip,
+}: {
+  sessionId: number
+  onClose: () => void
+  onSkip: () => void
+}) {
+  const [debriefPhase, setDebriefPhase] = useState<DebriefPhase>('ask')
+  const [text, setText] = useState<string | null>(null)
+
+  async function handleYes() {
+    setDebriefPhase('loading')
+    try {
+      const r = await api.post(`/ai/debrief/${sessionId}`)
+      setText(r.data.debrief_text)
+    } catch {
+      setText('Great workout! Keep pushing — every session counts! 💪')
+    }
+    setDebriefPhase('show')
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 page-fade">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative rounded-3xl p-7 w-full max-w-sm space-y-5"
         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
+        {/* Icon + title */}
         <div className="text-center">
-          <div className="text-4xl mb-3">{loading ? '🤖' : '🏆'}</div>
+          <div className="text-4xl mb-3">🤖</div>
           <h2 className="text-lg font-bold mb-1">
-            {loading ? '教练正在分析...' : '训练总结'}
+            {debriefPhase === 'ask'
+              ? 'Session Complete! 🎉'
+              : debriefPhase === 'loading'
+              ? 'Getting your debrief...'
+              : 'Coach Debrief'}
           </h2>
+          {debriefPhase === 'ask' && (
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              Want a coaching debrief for this session?
+            </p>
+          )}
         </div>
 
-        {loading ? (
-          <div className="space-y-2">
-            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '90%' }} />
-            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '75%' }} />
-            <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '82%' }} />
+        {/* Loading skeleton */}
+        {debriefPhase === 'loading' && (
+          <div className="space-y-2.5 py-1">
+            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '90%' }} />
+            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '75%' }} />
+            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '82%' }} />
+            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '60%' }} />
           </div>
-        ) : (
-          <p className="text-sm leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>
-            {text}
-          </p>
         )}
 
-        {!loading && (
+        {/* AI response card */}
+        {debriefPhase === 'show' && text && (
+          <div
+            className="rounded-2xl px-4 py-4 text-sm leading-relaxed"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {text}
+          </div>
+        )}
+
+        {/* Ask buttons */}
+        {debriefPhase === 'ask' && (
+          <div className="space-y-2 pt-1">
+            <button
+              onClick={handleYes}
+              className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
+              style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 6px 20px var(--accent-glow)' }}
+            >
+              Yes, coach me 💬
+            </button>
+            <button
+              onClick={onSkip}
+              className="w-full rounded-2xl py-3 font-semibold text-sm transition-all active:scale-95"
+              style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            >
+              Skip
+            </button>
+          </div>
+        )}
+
+        {/* Got it button */}
+        {debriefPhase === 'show' && (
           <button
             onClick={onClose}
             className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
             style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 6px 20px var(--accent-glow)' }}
           >
-            Nice! 💪
+            Got it! 💪
           </button>
         )}
       </div>
@@ -178,14 +235,16 @@ export default function LogPage() {
 
   const [exercises, setExercises] = useState<ExerciseEntry[]>(() => {
     if (typeof window === 'undefined') return []
+    if (!isRunning) return []
     try {
-      const stored = sessionStorage.getItem(EXERCISES_KEY)
+      const stored = localStorage.getItem(EXERCISES_KEY)
       return stored ? JSON.parse(stored) : []
     } catch { return [] }
   })
 
   useEffect(() => {
-    try { sessionStorage.setItem(EXERCISES_KEY, JSON.stringify(exercises)) } catch {}
+    if (typeof window === 'undefined') return
+    try { localStorage.setItem(EXERCISES_KEY, JSON.stringify(exercises)) } catch {}
   }, [exercises])
 
   const exercisesRef = useRef<ExerciseEntry[]>([])
@@ -225,7 +284,7 @@ export default function LogPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       stopTimer()
-      try { sessionStorage.removeItem(EXERCISES_KEY) } catch {}
+      try { localStorage.removeItem(EXERCISES_KEY) } catch {}
 
       // Show debrief if session was created
       const sessionId = response.data?.id
@@ -242,6 +301,7 @@ export default function LogPage() {
   })
 
   function startWorkout() {
+    try { localStorage.removeItem(EXERCISES_KEY) } catch {}
     startTimer()
     setExercises([])
     setPhase('active')
@@ -423,6 +483,10 @@ export default function LogPage() {
               setShowDebrief(false)
               router.push('/dashboard')
             }}
+            onSkip={() => {
+              setShowDebrief(false)
+              router.push('/dashboard')
+            }}
           />
         )}
         <div className="min-h-screen flex flex-col items-center justify-center gap-5 page-fade"
@@ -430,7 +494,6 @@ export default function LogPage() {
           <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
             style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.4)' }}>✓</div>
           <h2 className="text-2xl font-bold text-green-400">Workout Saved!</h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Getting your AI coaching debrief...</p>
         </div>
       </AuthGuard>
     )
