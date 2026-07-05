@@ -73,7 +73,6 @@ export default function LoginPage() {
             💪
           </div>
           <h1 className="text-2xl font-black tracking-tight">GymTrack</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Dennis · Cyrus · Noki</p>
         </div>
 
         {/* Card */}
