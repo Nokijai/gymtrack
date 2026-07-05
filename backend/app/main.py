@@ -20,10 +20,14 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-# ---- CORS — restrict to known frontend origin ------------------------------
+# ---- CORS — production origin + localhost for local dev --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://gymteam.worldofnoki.com"],
+    allow_origins=[
+        "https://gymteam.worldofnoki.com",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,11 +43,14 @@ app.include_router(profile.router)
 app.include_router(ai_router.router)
 
 
+UPLOAD_ROOT = os.environ.get("UPLOAD_ROOT", "/app/uploads")
+
+
 @app.on_event("startup")
 def startup():
     init_db()
-    # Ensure uploads directory exists
-    os.makedirs("/app/uploads/avatars", exist_ok=True)
+    # Ensure uploads directory exists (UPLOAD_ROOT overrides Docker path for local dev)
+    os.makedirs(os.path.join(UPLOAD_ROOT, "avatars"), exist_ok=True)
 
 
 @app.get("/api/health")
@@ -53,4 +60,4 @@ def health():
 
 # ---- Serve uploaded avatars as static files --------------------------------
 # Mount AFTER routes so /api/* endpoints take priority
-app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_ROOT), name="uploads")

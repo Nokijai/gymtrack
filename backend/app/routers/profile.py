@@ -10,8 +10,8 @@ from app.auth import get_current_user, verify_password, hash_password
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
-# ---- Avatar upload config ---------------------------------------------------
-UPLOAD_DIR = "/app/uploads/avatars"
+# ---- Avatar upload config (UPLOAD_ROOT for local dev, /app/uploads in Docker) ---
+UPLOAD_DIR = os.path.join(os.environ.get("UPLOAD_ROOT", "/app/uploads"), "avatars")
 MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
 
 # Magic bytes for allowed types

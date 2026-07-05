@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
@@ -10,6 +10,7 @@ import { xpForLevel, xpForNextLevel } from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
 import Avatar from '@/components/Avatar'
+import AISummaryCard from '@/components/AISummaryCard'
 import CoachChat from '@/components/CoachChat'
 import { useSSE } from '@/hooks/useSSE'
 import { useTimerStore } from '@/lib/store'
@@ -132,25 +133,10 @@ export default function DashboardPage() {
   const [selectedSession, setSelectedSession] = useState<number | null>(null)
   const [showReadiness, setShowReadiness] = useState(false)
   const { isRunning } = useTimerStore()
-  const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard/stats').then((r) => r.data),
-  })
-
-  const { data: todayData, isLoading: todayLoading } = useQuery<TodayRec>({
-    queryKey: ['ai-today'],
-    queryFn: () => api.get('/ai/today').then((r) => r.data),
-    staleTime: 10 * 60 * 1000,
-    retry: false,
-  })
-
-  const { data: weeklyData, isLoading: weeklyLoading } = useQuery<WeeklySummary>({
-    queryKey: ['ai-weekly'],
-    queryFn: () => api.get('/ai/weekly-summary').then((r) => r.data),
-    staleTime: 30 * 60 * 1000,
-    retry: false,
   })
 
   // Show readiness modal once per day
@@ -230,23 +216,17 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* ── AI Train Today Card ───────────────────────────────────── */}
-          <div className="rounded-2xl overflow-hidden"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <div className="px-5 pt-5 pb-2 flex items-center gap-2">
-              <span className="text-lg">🤖</span>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                今日训练建议
-              </h2>
-            </div>
-            <div className="px-5 pb-5">
-              {todayLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-3/5" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              ) : todayData?.recommendation ? (
+          {/* ── AI Train Today Card (user-triggered, not on route) ──── */}
+          <AISummaryCard<TodayRec>
+            title="今日训练建议"
+            queryKey={['ai-today']}
+            endpoint="/ai/today"
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+            promptText="获取基于你训练记录的今日建议"
+          >
+            {(todayData) => (
+              todayData?.recommendation ? (
                 <>
                   <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-muted)' }}>
                     {todayData.recommendation}
@@ -266,9 +246,9 @@ export default function DashboardPage() {
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   完成首次训练后获取AI建议 💪
                 </p>
-              )}
-            </div>
-          </div>
+              )
+            )}
+          </AISummaryCard>
 
           {/* ── Stats grid ───────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
@@ -302,28 +282,33 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* ── AI Weekly Summary Card ────────────────────────────────── */}
-          {!weeklyLoading && weeklyData?.summary_text && (
-            <div className="rounded-2xl p-5"
-              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.06) 100%)', border: '1px solid rgba(59,130,246,0.2)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span>📊</span>
-                <h2 className="text-sm font-semibold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  本周总结
-                </h2>
-              </div>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                {weeklyData.summary_text}
-              </p>
-              {weeklyData.stats && (
-                <div className="mt-3 flex gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <span>💪 {weeklyData.stats.total_sessions} sessions</span>
-                  <span>⏱ {weeklyData.stats.total_minutes} min</span>
-                  <span>🏋️ {weeklyData.stats.total_volume_kg}kg lifted</span>
-                </div>
-              )}
-            </div>
-          )}
+          {/* ── AI Weekly Summary (user-triggered, not on route) ─────── */}
+          <AISummaryCard<WeeklySummary>
+            title="本周总结"
+            icon="📊"
+            queryKey={['ai-weekly']}
+            endpoint="/ai/weekly-summary"
+            staleTime={30 * 60 * 1000}
+            className="rounded-2xl p-5"
+            style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.06) 100%)', border: '1px solid rgba(59,130,246,0.2)' }}
+            promptText="查看 AI 对你本周训练的总结"
+            buttonText="生成本周总结"
+          >
+            {(weeklyData) => (
+              <>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {weeklyData?.summary_text || '暂无本周数据'}
+                </p>
+                {weeklyData?.stats && (
+                  <div className="mt-3 flex gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span>💪 {weeklyData.stats.total_sessions} sessions</span>
+                    <span>⏱ {weeklyData.stats.total_minutes} min</span>
+                    <span>🏋️ {weeklyData.stats.total_volume_kg}kg lifted</span>
+                  </div>
+                )}
+              </>
+            )}
+          </AISummaryCard>
 
           {/* ── Recent sessions ──────────────────────────────────────── */}
           <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>

@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
+import AISummaryCard from '@/components/AISummaryCard'
 import api from '@/lib/api'
 
 interface MuscleData {
@@ -97,12 +97,6 @@ export default function RecoveryPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: todayData, isLoading: todayLoading } = useQuery<TodayRec>({
-    queryKey: ['ai-today'],
-    queryFn: () => api.get('/ai/today').then((r) => r.data),
-    staleTime: 10 * 60 * 1000,
-  })
-
   const heatmap = heatmapData?.heatmap || {}
 
   // Group muscles by category
@@ -120,47 +114,33 @@ export default function RecoveryPage() {
 
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-24">
 
-          {/* ── AI Today Banner ──────────────────────────────────────── */}
-          <div
-            className="rounded-2xl p-5 relative overflow-hidden"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          {/* ── AI Today Banner (user-triggered, not on route) ──────── */}
+          <AISummaryCard<TodayRec>
+            title="今日训练建议"
+            badge="AI Coach"
+            queryKey={['ai-today']}
+            endpoint="/ai/today"
+            promptText="根据肌肉恢复状态，获取今日训练建议"
           >
-            <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)' }} />
-
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xl">🤖</span>
-              <h2 className="font-bold text-base">今日训练建议</h2>
-              <span className="text-xs px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(59,130,246,0.15)', color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.3)' }}>
-                AI Coach
-              </span>
-            </div>
-
-            {todayLoading ? (
-              <div className="space-y-2">
-                <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '85%' }} />
-                <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '70%' }} />
-                <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '55%' }} />
-              </div>
-            ) : (
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                {todayData?.recommendation || '加载训练建议中...'}
-              </p>
+            {(todayData) => (
+              <>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {todayData?.recommendation || '暂无建议'}
+                </p>
+                {todayData?.readiness && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>今日状态：</span>
+                    <span className="text-base">
+                      {['😴', '😐', '🙂', '💪', '🔥'][todayData.readiness - 1] || '❓'}
+                    </span>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                      {todayData.readiness}/5
+                    </span>
+                  </div>
+                )}
+              </>
             )}
-
-            {todayData?.readiness && (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>今日状态：</span>
-                <span className="text-base">
-                  {['😴', '😐', '🙂', '💪', '🔥'][todayData.readiness - 1] || '❓'}
-                </span>
-                <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                  {todayData.readiness}/5
-                </span>
-              </div>
-            )}
-          </div>
+          </AISummaryCard>
 
           {/* ── Legend ───────────────────────────────────────────────── */}
           <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>

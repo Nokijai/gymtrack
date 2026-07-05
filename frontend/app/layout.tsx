@@ -4,7 +4,7 @@ import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'GymTrack',
-  description: 'Team gym tracking — Dennis, Cyrus, Noki',
+  description: 'Team gym tracking',
 }
 
 export const viewport: Viewport = {
