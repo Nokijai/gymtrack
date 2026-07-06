@@ -117,6 +117,118 @@ class ReadinessLog(Base):
     notes = Column(Text, nullable=True)
 
 
+class Badge(Base):
+    """Unlocked achievement badges per user."""
+    __tablename__ = "badges"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    badge_key = Column(String, nullable=False)  # e.g. "first_blood"
+    unlocked_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", backref="badges")
+
+
+# ── Achievement Badge Definitions ─────────────────────────────────────────────
+BADGE_DEFINITIONS = {
+    "first_blood": {
+        "name": "First Blood",
+        "name_cn": "首勝",
+        "desc": "Complete your first workout session",
+        "desc_cn": "完成第一次訓練",
+        "icon": "🏅",
+        "check": lambda user, stats: stats["total_sessions"] >= 1,
+    },
+    "streak_3": {
+        "name": "On Fire",
+        "name_cn": "火熱",
+        "desc": "Achieve a 3-day streak",
+        "desc_cn": "連續訓練3天",
+        "icon": "🔥",
+        "check": lambda user, stats: user.current_streak >= 3,
+    },
+    "streak_7": {
+        "name": "Iron Will",
+        "name_cn": "鋼鐵意志",
+        "desc": "Achieve a 7-day streak",
+        "desc_cn": "連續訓練7天",
+        "icon": "⚔️",
+        "check": lambda user, stats: user.current_streak >= 7,
+    },
+    "streak_14": {
+        "name": "Unstoppable",
+        "name_cn": "勢不可擋",
+        "desc": "Achieve a 14-day streak",
+        "desc_cn": "連續訓練14天",
+        "icon": "💀",
+        "check": lambda user, stats: user.current_streak >= 14,
+    },
+    "volume_1000": {
+        "name": "Volume Rookie",
+        "name_cn": "菜鳥之力",
+        "desc": "Lift 1,000kg total volume",
+        "desc_cn": "累計總重量1000kg",
+        "icon": "🏋️",
+        "check": lambda user, stats: stats["total_volume"] >= 1000,
+    },
+    "volume_10000": {
+        "name": "Volume King",
+        "name_cn": "重量之王",
+        "desc": "Lift 10,000kg total volume",
+        "desc_cn": "累計總重量10000kg",
+        "icon": "👑",
+        "check": lambda user, stats: stats["total_volume"] >= 10000,
+    },
+    "sessions_10": {
+        "name": "Getting Started",
+        "name_cn": "開始上路",
+        "desc": "Complete 10 workout sessions",
+        "desc_cn": "完成10次訓練",
+        "icon": "📈",
+        "check": lambda user, stats: stats["total_sessions"] >= 10,
+    },
+    "sessions_50": {
+        "name": "Dedicated",
+        "name_cn": "堅持不懈",
+        "desc": "Complete 50 workout sessions",
+        "desc_cn": "完成50次訓練",
+        "icon": "🎯",
+        "check": lambda user, stats: stats["total_sessions"] >= 50,
+    },
+    "sessions_100": {
+        "name": "Centurion",
+        "name_cn": "百戰勇士",
+        "desc": "Complete 100 workout sessions",
+        "desc_cn": "完成100次訓練",
+        "icon": "⚡",
+        "check": lambda user, stats: stats["total_sessions"] >= 100,
+    },
+    "level_10": {
+        "name": "Rising Star",
+        "name_cn": "新星崛起",
+        "desc": "Reach level 10",
+        "desc_cn": "達到等級10",
+        "icon": "⭐",
+        "check": lambda user, stats: user.level >= 10,
+    },
+    "level_25": {
+        "name": "Elite",
+        "name_cn": "精英",
+        "desc": "Reach level 25 (Platinum tier)",
+        "desc_cn": "達到等級25",
+        "icon": "💎",
+        "check": lambda user, stats: user.level >= 25,
+    },
+    "level_50": {
+        "name": "Ascended",
+        "name_cn": "飛昇",
+        "desc": "Reach level 50 (GOD tier)",
+        "desc_cn": "達到等級50",
+        "icon": "👁️",
+        "check": lambda user, stats: user.level >= 50,
+    },
+}
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -126,12 +238,18 @@ def get_db():
 
 
 def calculate_level(xp: int) -> int:
-    """Map XP to level 1–20.  Thresholds match the frontend LevelBadge."""
+    """Map XP to level 1–50. Exponential scaling — each level costs more."""
     thresholds = [
-        (33000, 20), (29000, 19), (25000, 18), (21500, 17), (18000, 16),
-        (15000, 15), (12500, 14), (10000, 13), ( 8200, 12), ( 6500, 11),
-        ( 5000, 10), ( 3700,  9), ( 2800,  8), ( 2000,  7), ( 1400,  6),
-        (  900,  5), (  500,  4), (  250,  3), (  100,  2),
+        (50000, 50), (44000, 49), (38500, 48), (33500, 47), (29000, 46),
+        (25000, 45), (21500, 44), (18500, 43), (16000, 42), (14000, 41),
+        (12000, 40), (10500, 39), (9000, 38), (7800, 37), (6700, 36),
+        (5700, 35), (4900, 34), (4200, 33), (3600, 32), (3100, 31),
+        (2700, 30), (2400, 29), (2100, 28), (1800, 27), (1600, 26),
+        (1400, 25), (1200, 24), (1000, 23), (850, 22), (700, 21),
+        (600, 20), (500, 19), (400, 18), (330, 17), (270, 16),
+        (220, 15), (180, 14), (150, 13), (120, 12), (100, 11),
+        (80, 10), (65, 9), (50, 8), (40, 7), (30, 6),
+        (20, 5), (12, 4), (6, 3), (2, 2),
     ]
     for threshold, level in thresholds:
         if xp >= threshold:
@@ -139,24 +257,127 @@ def calculate_level(xp: int) -> int:
     return 1
 
 
+def calculate_session_xp(
+    duration_minutes: int,
+    exercises: list,
+    streak: int,
+) -> int:
+    """
+    Calculate XP for a single session using the new formula:
+      base = volume(kg*reps) * 0.5 + duration(min) * 2
+      intensity_bonus = up to 50% extra based on avg weight per rep
+      streak_multiplier: 3-6d → 1.2x, 7-13d → 1.5x, 14+ → 2.0x
+    """
+    total_volume = 0.0
+    total_reps = 0
+    total_weight = 0.0
+    weighted_reps = 0
+
+    for e in exercises:
+        if e.set_list:
+            for es in e.set_list:
+                w = float(es.weight_kg or 0)
+                r = float(es.reps or 0)
+                total_volume += w * r
+                if w > 0:
+                    total_weight += w
+                    weighted_reps += r
+        else:
+            w = float(e.weight_kg or 0)
+            r = float(e.reps or 0) * float(e.sets or 1)
+            total_volume += w * r
+            if w > 0:
+                total_weight += w * float(e.sets or 1)
+                weighted_reps += r
+
+    # Base XP: volume * 0.5 + duration * 2
+    base_xp = total_volume * 0.5 + duration_minutes * 2
+
+    # Intensity bonus: if avg weight per rep > 50kg, get up to 50% extra
+    if weighted_reps > 0 and total_weight > 0:
+        avg_weight = total_weight / weighted_reps
+        intensity_factor = min(0.5, avg_weight / 200)  # 200kg = 50% bonus cap
+        base_xp *= (1 + intensity_factor)
+
+    # Streak multiplier
+    if streak >= 14:
+        streak_mult = 2.0
+    elif streak >= 7:
+        streak_mult = 1.5
+    elif streak >= 3:
+        streak_mult = 1.2
+    else:
+        streak_mult = 1.0
+
+    return int(base_xp * streak_mult)
+
+
 def recalculate_xp(db, user: User) -> None:
-    """Recalculate total XP for a user based on all their sessions."""
-    all_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user.id).all()
-    total_xp = 0.0
+    """Recalculate total XP for a user using the new formula + streak buff."""
+    all_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user.id).order_by(WorkoutSession.date.asc()).all()
+    total_xp = 0
+
+    # Track streak per session for accurate per-session buff
+    streak = 0
+    last_date = None
+    today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+
     for s in all_sessions:
-        base_xp = float(s.duration_minutes)
+        # Convert sessions to list of exercises for the formula
         exercises = db.query(Exercise).filter(Exercise.session_id == s.id).all()
-        for e in exercises:
-            # Use granular set_list if available, otherwise legacy sets*reps
-            if e.set_list:
-                for es in e.set_list:
-                    r = es.reps or 0
-                    base_xp += r * 0.1
+
+        # Recalculate streak as we go
+        if last_date:
+            prev_dt = datetime.datetime.strptime(last_date, "%Y-%m-%d")
+            curr_dt = datetime.datetime.strptime(s.date, "%Y-%m-%d")
+            if (curr_dt - prev_dt).days == 1:
+                streak += 1
             else:
-                base_xp += (e.sets or 1) * (e.reps or 1) * 0.1
-        total_xp += base_xp
-    user.xp = int(total_xp)
-    user.level = calculate_level(int(total_xp))
+                streak = 1
+        else:
+            streak = 1
+        last_date = s.date
+
+        session_xp = calculate_session_xp(s.duration_minutes, exercises, streak)
+        total_xp += session_xp
+
+    user.xp = total_xp
+    user.level = calculate_level(total_xp)
+
+
+def check_and_unlock_badges(db, user: User) -> list[str]:
+    """Check badge conditions and unlock any new ones. Returns list of newly unlocked badge keys."""
+    # Gather stats
+    all_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user.id).all()
+    total_sessions = len(all_sessions)
+    total_volume = 0.0
+    for s in all_sessions:
+        for ex in s.exercises:
+            if ex.set_list:
+                for es in ex.set_list:
+                    total_volume += float(es.weight_kg or 0) * float(es.reps or 0)
+            else:
+                total_volume += float(ex.weight_kg or 0) * float(ex.reps or 0) * float(ex.sets or 1)
+
+    # Get already unlocked badges
+    existing = set(
+        row.badge_key for row in db.query(Badge).filter(Badge.user_id == user.id).all()
+    )
+
+    stats = {"total_sessions": total_sessions, "total_volume": int(total_volume)}
+    newly_unlocked = []
+
+    for key, badge_def in BADGE_DEFINITIONS.items():
+        if key in existing:
+            continue
+        if badge_def["check"](user, stats):
+            db.add(Badge(user_id=user.id, badge_key=key))
+            newly_unlocked.append(key)
+
+    if newly_unlocked:
+        db.flush()
+
+    return newly_unlocked
 
 
 def recalculate_streak(db, user: User) -> None:
@@ -222,68 +443,98 @@ MUSCLE_GROUPS_SEED = [
     ("back_upper",   "Upper Back",       "上背",   "pull",  72),
     ("back_lower",   "Lower Back",       "下背",   "pull",  72),
     ("shoulders",    "Shoulders",        "肩膀",   "push",  48),
-    ("biceps",       "Biceps",           "二头肌", "pull",  48),
-    ("triceps",      "Triceps",          "三头肌", "push",  48),
+    ("biceps",       "Biceps",           "二頭肌", "pull",  48),
+    ("triceps",      "Triceps",          "三頭肌", "push",  48),
     ("forearms",     "Forearms",         "前臂",   "pull",  48),
-    ("quads",        "Quadriceps",       "股四头肌","legs", 72),
-    ("hamstrings",   "Hamstrings",       "腘绳肌", "legs",  72),
+    ("quads",        "Quadriceps",       "股四頭肌","legs", 72),
+    ("hamstrings",   "Hamstrings",       "膕繩肌", "legs",  72),
     ("glutes",       "Glutes",           "臀肌",   "legs",  72),
     ("calves",       "Calves",           "小腿",   "legs",  48),
     ("core",         "Core",             "核心",   "core",  48),
     ("cardio",       "Cardiovascular",   "心肺",   "cardio",24),
+    ("trapezius",    "Traps",            "斜方肌",  "pull",  48),
 ]
 
 # exercise_name → [(muscle_group_id, is_primary)]
 EXERCISE_MUSCLE_MAPPINGS = {
     "bench press":          [("chest", True),  ("triceps", False), ("shoulders", False)],
     "bench_press":          [("chest", True),  ("triceps", False), ("shoulders", False)],
-    "卧推":                  [("chest", True),  ("triceps", False), ("shoulders", False)],
+    "臥推":                  [("chest", True),  ("triceps", False), ("shoulders", False)],
     "squat":                [("quads", True),  ("hamstrings", False), ("glutes", False)],
     "深蹲":                  [("quads", True),  ("hamstrings", False), ("glutes", False)],
     "deadlift":             [("back_lower", True), ("hamstrings", False), ("glutes", False)],
     "硬拉":                  [("back_lower", True), ("hamstrings", False), ("glutes", False)],
     "pull up":              [("back_upper", True), ("biceps", False)],
     "pull_up":              [("back_upper", True), ("biceps", False)],
-    "引体向上":               [("back_upper", True), ("biceps", False)],
+    "引體向上":               [("back_upper", True), ("biceps", False)],
     "overhead press":       [("shoulders", True), ("triceps", False)],
     "overhead_press":       [("shoulders", True), ("triceps", False)],
     "ohp":                  [("shoulders", True), ("triceps", False)],
-    "军推":                  [("shoulders", True), ("triceps", False)],
+    "軍推":                  [("shoulders", True), ("triceps", False)],
     "row":                  [("back_upper", True), ("biceps", False)],
     "barbell row":          [("back_upper", True), ("biceps", False)],
     "划船":                  [("back_upper", True), ("biceps", False)],
     "bicep curl":           [("biceps", True)],
     "bicep_curl":           [("biceps", True)],
-    "弯举":                  [("biceps", True)],
+    "彎舉":                  [("biceps", True)],
     "tricep pushdown":      [("triceps", True)],
     "tricep_pushdown":      [("triceps", True)],
-    "三头下压":               [("triceps", True)],
+    "三頭下壓":               [("triceps", True)],
     "leg press":            [("quads", True), ("hamstrings", False)],
     "leg_press":            [("quads", True), ("hamstrings", False)],
-    "腿举":                  [("quads", True), ("hamstrings", False)],
+    "腿舉":                  [("quads", True), ("hamstrings", False)],
     "romanian deadlift":    [("hamstrings", True), ("glutes", False)],
     "romanian_deadlift":    [("hamstrings", True), ("glutes", False)],
     "rdl":                  [("hamstrings", True), ("glutes", False)],
-    "罗马尼亚硬拉":            [("hamstrings", True), ("glutes", False)],
+    "羅馬尼亞硬拉":            [("hamstrings", True), ("glutes", False)],
     "plank":                [("core", True)],
-    "平板支撑":               [("core", True)],
+    "平板支撐":               [("core", True)],
     "calf raise":           [("calves", True)],
     "calf_raise":           [("calves", True)],
     "提踵":                  [("calves", True)],
     "running":              [("cardio", True)],
     "跑步":                  [("cardio", True)],
     "dumbbell press":       [("chest", True), ("triceps", False), ("shoulders", False)],
-    "哑铃卧推":               [("chest", True), ("triceps", False), ("shoulders", False)],
+    "啞鈴臥推":               [("chest", True), ("triceps", False), ("shoulders", False)],
     "dumbbell curl":        [("biceps", True)],
-    "哑铃弯举":               [("biceps", True)],
+    "啞鈴彎舉":               [("biceps", True)],
     "lat pulldown":         [("back_upper", True), ("biceps", False)],
     "下拉":                  [("back_upper", True), ("biceps", False)],
     "push up":              [("chest", True), ("triceps", False)],
-    "俯卧撑":                 [("chest", True), ("triceps", False)],
+    "俯臥撐":                 [("chest", True), ("triceps", False)],
     "lunge":                [("quads", True), ("glutes", False)],
     "弓步蹲":                 [("quads", True), ("glutes", False)],
     "hip thrust":           [("glutes", True), ("hamstrings", False)],
     "臀推":                  [("glutes", True), ("hamstrings", False)],
+    # ── Shoulder exercises (added) ──────────────────────────────────────────
+    "shoulder press":       [("shoulders", True), ("triceps", False)],
+    "shoulder_press":       [("shoulders", True), ("triceps", False)],
+    "dumbbell shoulder press":[("shoulders", True), ("triceps", False)],
+    "啞鈴推舉":               [("shoulders", True), ("triceps", False)],
+    "lateral raise":        [("shoulders", True)],
+    "lateral_raise":        [("shoulders", True)],
+    "side lateral raise":   [("shoulders", True)],
+    "側平舉":                [("shoulders", True)],
+    "front raise":          [("shoulders", True)],
+    "front_raise":          [("shoulders", True)],
+    "前平舉":                [("shoulders", True)],
+    "face pull":            [("shoulders", True), ("back_upper", False)],
+    "face_pull":            [("shoulders", True), ("back_upper", False)],
+    "面拉":                  [("shoulders", True), ("back_upper", False)],
+    "reverse fly":          [("shoulders", True), ("back_upper", False)],
+    "reverse_fly":          [("shoulders", True), ("back_upper", False)],
+    "rear delt fly":        [("shoulders", True)],
+    "rear_delt_fly":        [("shoulders", True)],
+    "upright row":          [("shoulders", True), ("trapezius", False)],
+    "upright_row":          [("shoulders", True), ("trapezius", False)],
+    "直立划船":               [("shoulders", True), ("trapezius", False)],
+    "arnold press":         [("shoulders", True), ("triceps", False)],
+    "arnold_press":         [("shoulders", True), ("triceps", False)],
+    "pike push up":         [("shoulders", True)],
+    "pike_push_up":         [("shoulders", True)],
+    "shrug":                [("trapezius", True)],
+    "shoulder shrug":       [("trapezius", True)],
+    "聳肩":                  [("trapezius", True)],
 }
 
 

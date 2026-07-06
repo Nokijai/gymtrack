@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
@@ -12,6 +12,7 @@ import SessionDetailModal from '@/components/SessionDetailModal'
 import Avatar from '@/components/Avatar'
 import AISummaryCard from '@/components/AISummaryCard'
 import CoachChat from '@/components/CoachChat'
+import BadgeUnlockPopup from '@/components/BadgeUnlockPopup'
 import { useSSE } from '@/hooks/useSSE'
 import { useTimerStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -38,7 +39,7 @@ interface WeeklySummary {
 }
 
 const READINESS_EMOJIS = ['😴', '😐', '🙂', '💪', '🔥']
-const READINESS_LABELS = ['很疲惫', '普通', '还不错', '很好', '超燃!']
+const READINESS_LABELS = ['很疲憊', '普通', '還不錯', '很好', '超燃!']
 const READINESS_DATE_KEY = 'gymtrack_readiness_date'
 
 // ─── Readiness Modal ─────────────────────────────────────────────────────────
@@ -54,7 +55,6 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
       localStorage.setItem(READINESS_DATE_KEY, new Date().toDateString())
       onClose()
     } catch {
-      // still close
       localStorage.setItem(READINESS_DATE_KEY, new Date().toDateString())
       onClose()
     }
@@ -68,8 +68,8 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-1">今日状态如何？</h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>帮助AI为你制定最佳训练计划</p>
+          <h2 className="text-xl font-bold mb-1">今日狀態如何？</h2>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>幫助AI為你制定最佳訓練計劃</p>
         </div>
 
         <div className="flex justify-around py-2">
@@ -110,7 +110,7 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
             boxShadow: selected ? '0 6px 20px var(--accent-glow)' : 'none',
           }}
         >
-          {submitting ? '保存中...' : '确认 →'}
+          {submitting ? '保存中...' : '確認 →'}
         </button>
       </div>
     </div>
@@ -120,10 +120,7 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 function Skeleton({ className = '' }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse rounded-lg ${className}`}
-      style={{ background: 'rgba(255,255,255,0.08)' }}
-    />
+    <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'rgba(255,255,255,0.08)' }} />
   )
 }
 
@@ -133,17 +130,24 @@ export default function DashboardPage() {
   const [selectedSession, setSelectedSession] = useState<number | null>(null)
   const [showReadiness, setShowReadiness] = useState(false)
   const { isRunning } = useTimerStore()
+  const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard/stats').then((r) => r.data),
   })
 
+  const { data: weeklyData, isLoading: weeklyLoading } = useQuery<WeeklySummary>({
+    queryKey: ['ai-weekly'],
+    queryFn: () => api.get('/ai/weekly-summary').then((r) => r.data),
+    staleTime: 30 * 60 * 1000,
+    retry: false,
+  })
+
   // Show readiness modal once per day
   useEffect(() => {
     const lastDate = localStorage.getItem(READINESS_DATE_KEY)
     if (lastDate !== new Date().toDateString()) {
-      // Small delay so page loads first
       const timer = setTimeout(() => setShowReadiness(true), 1500)
       return () => clearTimeout(timer)
     }
@@ -164,13 +168,14 @@ export default function DashboardPage() {
   const nextLevelXP    = xpForNextLevel(user.level)
   const xpInLevel      = user.xp - currentLevelXP
   const xpNeeded       = nextLevelXP - currentLevelXP
-  const xpPct          = user.level >= 20 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
+  const xpPct          = user.level >= 50 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
 
   return (
     <AuthGuard>
       {showReadiness && <ReadinessModal onClose={() => setShowReadiness(false)} />}
+      <BadgeUnlockPopup />
 
       <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
         <Nav />
@@ -196,7 +201,7 @@ export default function DashboardPage() {
 
                 <div className="mt-3">
                   <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                    <span>{user.level >= 20 ? 'MAX LEVEL' : `${xpInLevel} / ${xpNeeded} XP to Lv.${user.level + 1}`}</span>
+                    <span>{user.level >= 50 ? 'MAX LEVEL' : `${xpInLevel} / ${xpNeeded} XP to Lv.${user.level + 1}`}</span>
                     <span>{xpPct}%</span>
                   </div>
                   <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -216,14 +221,14 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* ── AI Train Today Card (user-triggered, not on route) ──── */}
+          {/* ── AI Train Today Card ───────────────────────────────────── */}
           <AISummaryCard<TodayRec>
-            title="今日训练建议"
+            title="今日訓練建議"
             queryKey={['ai-today']}
             endpoint="/ai/today"
             className="rounded-2xl overflow-hidden"
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-            promptText="获取基于你训练记录的今日建议"
+            promptText="獲取基於你訓練記錄的今日建議"
           >
             {(todayData) => (
               todayData?.recommendation ? (
@@ -244,7 +249,7 @@ export default function DashboardPage() {
                 </>
               ) : (
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  完成首次训练后获取AI建议 💪
+                  完成首次訓練後獲取AI建議 💪
                 </p>
               )
             )}
@@ -282,22 +287,22 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* ── AI Weekly Summary (user-triggered, not on route) ─────── */}
+          {/* ── AI Weekly Summary Card ────────────────────────────────── */}
           <AISummaryCard<WeeklySummary>
-            title="本周总结"
+            title="本週總結"
             icon="📊"
             queryKey={['ai-weekly']}
             endpoint="/ai/weekly-summary"
             staleTime={30 * 60 * 1000}
             className="rounded-2xl p-5"
             style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.06) 100%)', border: '1px solid rgba(59,130,246,0.2)' }}
-            promptText="查看 AI 对你本周训练的总结"
-            buttonText="生成本周总结"
+            promptText="查看 AI 對你本週訓練的總結"
+            buttonText="生成本週總結"
           >
             {(weeklyData) => (
               <>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  {weeklyData?.summary_text || '暂无本周数据'}
+                  {weeklyData?.summary_text || '暫無本週數據'}
                 </p>
                 {weeklyData?.stats && (
                   <div className="mt-3 flex gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -350,7 +355,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-
         </div>
       </div>
 

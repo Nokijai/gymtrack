@@ -45,29 +45,33 @@ def calculate_muscle_fatigue(user_id: int, db: Session) -> dict:
 
         for exercise in session.exercises:
             ex_name_lower = exercise.name.lower().strip()
+            alt_names = [ex_name_lower]
 
-            # Get muscle impacts for this exercise
-            impacts = (
-                db.query(ExerciseMuscleImpact)
-                .filter(ExerciseMuscleImpact.exercise_name == ex_name_lower)
-                .all()
-            )
+            # Also try Chinese name as fallback
+            if exercise.name_cn:
+                cn_lower = exercise.name_cn.lower().strip()
+                alt_names.append(cn_lower)
 
-            # Also try with underscores/spaces variant
-            if not impacts:
-                alt_name = ex_name_lower.replace(" ", "_")
+            # Also try with underscores/spaces variant for each name
+            for nm in list(alt_names):
+                alt_names.append(nm.replace(" ", "_"))
+            for nm in list(alt_names):
+                if "_" in nm:
+                    alt_names.append(nm.replace("_", " "))
+
+            # Remove duplicates
+            alt_names = list(dict.fromkeys(alt_names))
+
+            # Find matching muscle impacts
+            impacts = None
+            for nm in alt_names:
                 impacts = (
                     db.query(ExerciseMuscleImpact)
-                    .filter(ExerciseMuscleImpact.exercise_name == alt_name)
+                    .filter(ExerciseMuscleImpact.exercise_name == nm)
                     .all()
                 )
-            if not impacts:
-                alt_name = ex_name_lower.replace("_", " ")
-                impacts = (
-                    db.query(ExerciseMuscleImpact)
-                    .filter(ExerciseMuscleImpact.exercise_name == alt_name)
-                    .all()
-                )
+                if impacts:
+                    break
 
             if not impacts:
                 continue
@@ -86,12 +90,12 @@ def calculate_muscle_fatigue(user_id: int, db: Session) -> dict:
                 volume = w * r * s
 
             if volume == 0:
-                # Use rep-only volume for bodyweight/cardio
+                # Bodyweight / cardio: use rep-based scoring with minimum floor
                 if exercise.set_list:
                     for es in exercise.set_list:
-                        volume += float(es.reps or 1)
+                        volume += float(es.reps or 1) * 3.0  # 3x multiplier for bodyweight
                 else:
-                    volume = float((exercise.sets or 1) * (exercise.reps or 1))
+                    volume = float((exercise.sets or 1) * (exercise.reps or 1)) * 3.0
 
             # Hours since this session
             hours_since = max(0.0, (now - session_dt).total_seconds() / 3600.0)

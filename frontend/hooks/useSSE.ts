@@ -22,6 +22,12 @@ export function useSSE() {
           queryClient.invalidateQueries({ queryKey: ['dashboard'] })
           queryClient.invalidateQueries({ queryKey: ['sessions'] })
         }
+        if (ev.type === 'badges' && ev.badges?.length > 0) {
+          // Invalidate badges query so BadgeGrid refreshes
+          queryClient.invalidateQueries({ queryKey: ['badges'] })
+          // Fire a custom event the dashboard page can listen for
+          window.dispatchEvent(new CustomEvent('badge-unlock', { detail: { badges: ev.badges } }))
+        }
       } catch {}
     }
 

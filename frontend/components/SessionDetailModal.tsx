@@ -72,12 +72,12 @@ function calcVolume(sets: SetDetail[]): number | null {
 function exerciseEmoji(name: string): string {
   const n = name.toLowerCase()
   if (n.includes('squat') || n.includes('蹲')) return '🦵'
-  if (n.includes('pull') || n.includes('row') || n.includes('拉') || n.includes('划')) return '🏋️'
+  if (n.includes('pull') || n.includes('row') || n.includes('拉') || n.includes('劃')) return '🏋️'
   if (n.includes('press') || n.includes('推') || n.includes('bench')) return '💪'
-  if (n.includes('curl') || n.includes('弯举')) return '💪'
+  if (n.includes('curl') || n.includes('彎舉')) return '💪'
   if (n.includes('run') || n.includes('jog') || n.includes('跑') || n.includes('cardio') || n.includes('bike')) return '🏃'
   if (n.includes('plank') || n.includes('crunch') || n.includes('core') || n.includes('腹')) return '🔥'
-  if (n.includes('dead') || n.includes('硬举')) return '🏋️'
+  if (n.includes('dead') || n.includes('硬舉')) return '🏋️'
   return '💪'
 }
 

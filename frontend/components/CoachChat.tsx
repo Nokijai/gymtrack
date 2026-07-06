@@ -187,7 +187,7 @@ export default function CoachChat() {
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm">AI Coach</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {isTyping ? '正在思考...' : '随时帮助你'}
+                {isTyping ? '正在思考...' : '隨時幫助你'}
               </div>
             </div>
             <button
@@ -277,7 +277,7 @@ export default function CoachChat() {
                 color: 'var(--text)',
                 borderColor: 'var(--border)',
               }}
-              placeholder="问教练任何问题..."
+              placeholder="問教練任何問題..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.database import get_db, User, WorkoutSession
+from app.database import get_db, User, WorkoutSession, Badge, BADGE_DEFINITIONS, check_and_unlock_badges, Exercise, ExerciseSet, MuscleGroup, ExerciseMuscleImpact
 from app.schemas import ProfileResponse, ChangeMyPasswordRequest
 from app.auth import get_current_user, verify_password, hash_password
 
@@ -121,6 +121,136 @@ async def upload_avatar(
     db.commit()
 
     return {"avatar_url": avatar_url}
+
+
+@router.get("/badges")
+def get_badges(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all badges with unlock status."""
+    unlocked = set(
+        row.badge_key for row in db.query(Badge).filter(Badge.user_id == current_user.id).all()
+    )
+
+    all_badges = []
+    for key, defn in BADGE_DEFINITIONS.items():
+        all_badges.append({
+            "key": key,
+            "name": defn["name"],
+            "name_cn": defn["name_cn"],
+            "desc": defn["desc"],
+            "desc_cn": defn["desc_cn"],
+            "icon": defn["icon"],
+            "unlocked": key in unlocked,
+        })
+
+    return {"badges": all_badges}
+
+
+@router.get("/exercise-history")
+def get_exercise_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get per-exercise performance history grouped by muscle group."""
+
+    # Load all muscle groups
+    muscle_groups = {mg.id: mg for mg in db.query(MuscleGroup).all()}
+
+    # Load exercise → muscle mappings
+    mappings = db.query(ExerciseMuscleImpact).all()
+    ex_to_muscles: dict[str, list[tuple[str, bool]]] = {}
+    for m in mappings:
+        ex_to_muscles.setdefault(m.exercise_name, []).append(
+            (m.muscle_group_id, bool(m.is_primary))
+        )
+
+    # Query all sessions with exercises for this user
+    sessions = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == current_user.id)
+        .order_by(WorkoutSession.date.asc())
+        .all()
+    )
+
+    # Group history by exercise name (normalized)
+    exercise_history: dict[str, list[dict]] = {}
+
+    for s in sessions:
+        for ex in s.exercises:
+            key = ex.name.lower().strip()
+            if key not in exercise_history:
+                # Get the chinese name
+                cn = ex.name_cn or key
+                # Find muscle group for categorization
+                primary_muscle = None
+                if key in ex_to_muscles:
+                    for mg_id, is_primary in ex_to_muscles[key]:
+                        if is_primary and mg_id in muscle_groups:
+                            primary_muscle = muscle_groups[mg_id]
+                            break
+                    if not primary_muscle:
+                        mg_id = ex_to_muscles[key][0][0]
+                        primary_muscle = muscle_groups.get(mg_id)
+
+                exercise_history[key] = {
+                    "name": key,
+                    "name_cn": cn,
+                    "muscle_group": primary_muscle.name_en if primary_muscle else "Other",
+                    "muscle_group_cn": primary_muscle.name_cn if primary_muscle else "其他",
+                    "category": primary_muscle.category if primary_muscle else "other",
+                    "history": [],
+                }
+
+            # Calculate volume for this exercise in this session
+            volume = 0.0
+            max_weight = 0.0
+            total_reps = 0
+            sets_count = 0
+
+            if ex.set_list:
+                for es in ex.set_list:
+                    w = float(es.weight_kg or 0)
+                    r = float(es.reps or 0)
+                    volume += w * r
+                    max_weight = max(max_weight, w)
+                    total_reps += r
+                    sets_count += 1
+            else:
+                w = float(ex.weight_kg or 0)
+                r = float(ex.reps or 0)
+                s = float(ex.sets or 1)
+                volume = w * r * s
+                max_weight = w
+                total_reps = r * s
+                sets_count = int(s)
+
+            exercise_history[key]["history"].append({
+                "date": s.date,
+                "volume": round(volume, 1),
+                "max_weight": max_weight,
+                "total_reps": total_reps,
+                "sets": sets_count,
+            })
+
+    # Group by category (muscle group)
+    grouped: dict[str, list[dict]] = {}
+    for data in exercise_history.values():
+        cat = data["category"]
+        grouped.setdefault(cat, []).append(data)
+
+    # Sort categories in a sensible order
+    cat_order = ["push", "pull", "legs", "core", "cardio", "other"]
+    sorted_grouped = {}
+    for cat in cat_order:
+        if cat in grouped:
+            sorted_grouped[cat] = grouped[cat]
+    for cat in grouped:
+        if cat not in sorted_grouped:
+            sorted_grouped[cat] = grouped[cat]
+
+    return {"groups": sorted_grouped, "muscle_groups": {k: {"name_en": v.name_en, "name_cn": v.name_cn, "category": v.category} for k, v in muscle_groups.items()}}
 
 
 @router.put("/password")

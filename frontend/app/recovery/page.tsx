@@ -26,8 +26,8 @@ interface TodayRec {
 
 function getStateColor(state: string) {
   switch (state) {
-    case 'fresh':   return { bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   text: '#4ade80', label: '恢复中' }
-    case 'training':return { bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.35)',   text: '#fbbf24', label: '训练中' }
+    case 'fresh':   return { bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   text: '#4ade80', label: '恢復中' }
+    case 'training':return { bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.35)',   text: '#fbbf24', label: '訓練中' }
     case 'danger':  return { bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',    text: '#f87171', label: '需休息' }
     default:        return { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)',   text: '#94a3b8', label: '未知' }
   }
@@ -64,7 +64,7 @@ function MuscleCard({ id, data }: { id: string; data: MuscleData }) {
       {/* Fatigue bar */}
       <div>
         <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-          <span>疲劳度</span>
+          <span>疲勞度</span>
           <span style={{ color: colors.text }}>{data.fatigue_pct}%</span>
         </div>
         <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -97,6 +97,12 @@ export default function RecoveryPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: todayData, isLoading: todayLoading } = useQuery<TodayRec>({
+    queryKey: ['ai-today'],
+    queryFn: () => api.get('/ai/today').then((r) => r.data),
+    staleTime: 10 * 60 * 1000,
+  })
+
   const heatmap = heatmapData?.heatmap || {}
 
   // Group muscles by category
@@ -114,22 +120,22 @@ export default function RecoveryPage() {
 
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-24">
 
-          {/* ── AI Today Banner (user-triggered, not on route) ──────── */}
+          {/* ── AI Today Banner ──────────────────────────────────────── */}
           <AISummaryCard<TodayRec>
-            title="今日训练建议"
+            title="今日訓練建議"
             badge="AI Coach"
             queryKey={['ai-today']}
             endpoint="/ai/today"
-            promptText="根据肌肉恢复状态，获取今日训练建议"
+            promptText="根據肌肉恢復狀態，獲取今日訓練建議"
           >
             {(todayData) => (
               <>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  {todayData?.recommendation || '暂无建议'}
+                  {todayData?.recommendation || '暫無建議'}
                 </p>
                 {todayData?.readiness && (
                   <div className="mt-3 flex items-center gap-2">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>今日状态：</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>今日狀態：</span>
                     <span className="text-base">
                       {['😴', '😐', '🙂', '💪', '🔥'][todayData.readiness - 1] || '❓'}
                     </span>
@@ -146,11 +152,11 @@ export default function RecoveryPage() {
           <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-green-400" />
-              <span>恢复 (0–20%)</span>
+              <span>恢復 (0–20%)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-yellow-400" />
-              <span>训练中 (21–60%)</span>
+              <span>訓練中 (21–60%)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-400" />
@@ -170,7 +176,7 @@ export default function RecoveryPage() {
             <div className="rounded-2xl p-8 text-center" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
               <div className="text-4xl mb-3">💪</div>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                开始训练后查看肌肉恢复状态
+                開始訓練後查看肌肉恢復狀態
               </p>
             </div>
           ) : (

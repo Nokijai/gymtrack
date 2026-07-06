@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.database import get_db, User, WorkoutSession, Exercise, ExerciseSet, recalculate_xp, recalculate_streak
+from app.database import get_db, User, WorkoutSession, Exercise, ExerciseSet, recalculate_xp, recalculate_streak, check_and_unlock_badges
 from app.schemas import SessionCreate, SessionResponse
 from app.auth import get_current_user
 from app.sse import broadcast
@@ -141,9 +141,15 @@ async def create_session(
     db.commit()
     db.refresh(session)
 
+    # Check for new badges
+    new_badges = check_and_unlock_badges(db, current_user)
+    db.commit()
+
     # Push real-time update to all connected clients
     broadcast({"type": "refresh", "scope": "leaderboard"})
     broadcast({"type": "refresh", "scope": "dashboard"})
+    if new_badges:
+        broadcast({"type": "badges", "badges": new_badges})
 
     return session
 
@@ -220,8 +226,14 @@ async def update_session(
     db.commit()
     db.refresh(session)
 
+    # Check for new badges
+    new_badges = check_and_unlock_badges(db, current_user)
+    db.commit()
+
     broadcast({"type": "refresh", "scope": "leaderboard"})
     broadcast({"type": "refresh", "scope": "dashboard"})
+    if new_badges:
+        broadcast({"type": "badges", "badges": new_badges})
 
     return session
 

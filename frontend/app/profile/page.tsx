@@ -8,6 +8,8 @@ import { xpForLevel, xpForNextLevel } from '@/components/LevelBadge'
 import XPBadge from '@/components/XPBadge'
 import SessionDetailModal from '@/components/SessionDetailModal'
 import Avatar from '@/components/Avatar'
+import BadgeGrid from '@/components/BadgeGrid'
+import ExerciseRoadmap from '@/components/ExerciseRoadmap'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
 
@@ -124,7 +126,7 @@ export default function ProfilePage() {
   const nextLevelXP    = xpForNextLevel(profile.level)
   const xpInLevel      = profile.xp - currentLevelXP
   const xpNeeded       = nextLevelXP - currentLevelXP
-  const xpPct          = profile.level >= 20 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
+  const xpPct          = profile.level >= 50 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
 
   return (
     <AuthGuard>
@@ -174,7 +176,7 @@ export default function ProfilePage() {
             <div className="mt-4 text-left">
               <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                 <span>
-                  {profile.level >= 20
+                  {profile.level >= 50
                     ? 'MAX LEVEL REACHED'
                     : `${xpInLevel.toLocaleString()} / ${xpNeeded.toLocaleString()} XP → Lv.${profile.level + 1}`}
                 </span>
@@ -198,6 +200,17 @@ export default function ProfilePage() {
             <StatCard icon="💪" label="Sessions" value={`${profile.total_sessions}`} />
             <StatCard icon="⏱️" label="Total Time" value={`${totalHours}h`} />
           </div>
+
+          {/* ── Exercise Roadmap ────────────────────────────────────────── */}
+          <div className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Exercise Roadmap
+            </h2>
+            <ExerciseRoadmap />
+          </div>
+
+          {/* ── Achievements ───────────────────────────────────────────── */}
+          <BadgeGrid />
 
           {/* ── Session history ─────────────────────────────────────────── */}
           <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>

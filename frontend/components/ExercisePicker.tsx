@@ -108,7 +108,7 @@ export default function ExercisePicker({ open, onClose, onSelect }: ExercisePick
       nameCn: name,
       category: 'Custom',
       equipment: 'Bodyweight',
-      muscleGroup: '自定义',
+      muscleGroup: '自定義',
       isCustom: true,
     }
     onSelect(custom)
