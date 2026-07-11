@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, event, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime
 import os
+
+from app.base import Base  # Import shared Base
 
 DB_PATH = os.environ.get("DB_PATH", "/app/data/gymtrack.db")
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
@@ -22,7 +23,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# Base is imported from app.base
 
 
 class User(Base):
