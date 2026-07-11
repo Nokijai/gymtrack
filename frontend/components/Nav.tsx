@@ -45,6 +45,13 @@ const icons = {
       <path d="M12 2L3 7v5c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7L12 2z"/>
     </svg>
   ),
+  programs: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="4" rx="1"/>
+      <rect x="3" y="10" width="18" height="4" rx="1"/>
+      <rect x="3" y="16" width="18" height="4" rx="1"/>
+    </svg>
+  ),
 }
 
 export default function Nav() {
@@ -60,6 +67,7 @@ export default function Nav() {
 
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: icons.dashboard },
+    { href: '/programs', label: 'Programs', icon: icons.programs },
     { href: '/log', label: 'Workout', icon: icons.log },
     { href: '/leaderboard', label: 'Ranks', icon: icons.leaderboard },
     { href: '/recovery', label: 'Recovery', icon: icons.recovery },
