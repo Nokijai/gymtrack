@@ -58,15 +58,16 @@ function makeSetRow(): SetRow {
 }
 
 function makeEntry(ex: SelectedExercise): ExerciseEntry {
+  const isCardio = ex.category === 'Cardio'
   return {
     id: `e_${Date.now()}_${Math.random()}`,
     nameEn: ex.nameEn,
     nameCn: ex.nameCn,
     isCustom: ex.isCustom,
-    showWeight: true,
-    showReps: true,
-    showDuration: false,
-    showDistance: false,
+    showWeight: !isCardio,
+    showReps: !isCardio,
+    showDuration: isCardio,
+    showDistance: isCardio,
     showNotes: false,
     sets: [makeSetRow()],
     nextTarget: null,

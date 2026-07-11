@@ -13,12 +13,14 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 def list_sessions(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    user_id: int | None = Query(None, description="Filter sessions by user ID (view another user)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owner_id = user_id if user_id is not None else current_user.id
     sessions = (
         db.query(WorkoutSession)
-        .filter(WorkoutSession.user_id == current_user.id)
+        .filter(WorkoutSession.user_id == owner_id)
         .order_by(WorkoutSession.date.desc(), WorkoutSession.id.desc())
         .offset(skip)
         .limit(limit)
@@ -30,12 +32,15 @@ def list_sessions(
 @router.get("/{session_id}")
 def get_session(
     session_id: int,
+    user_id: int | None = Query(None, description="View another user's session (read-only)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Get session details. Defaults to own user. Pass user_id to view another user's session."""
+    owner_id = user_id if user_id is not None else current_user.id
     session = db.query(WorkoutSession).filter(
         WorkoutSession.id == session_id,
-        WorkoutSession.user_id == current_user.id,
+        WorkoutSession.user_id == owner_id,
     ).first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")

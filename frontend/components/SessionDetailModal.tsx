@@ -30,11 +30,13 @@ interface SessionDetail {
   duration_minutes: number
   xp_earned: number
   exercises: ExerciseDetail[]
+  user_id?: number
 }
 
 interface Props {
   sessionId: number | null
   onClose: () => void
+  userId?: number | null  // optional: view another user's session
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,7 +83,7 @@ function exerciseEmoji(name: string): string {
   return '💪'
 }
 
-export default function SessionDetailModal({ sessionId, onClose }: Props) {
+export default function SessionDetailModal({ sessionId, onClose, userId }: Props) {
   const { user } = useAuthStore()
   const [detail, setDetail]   = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -94,11 +96,12 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
   useEffect(() => {
     if (sessionId === null) { setDetail(null); return }
     setLoading(true); setError('')
-    api.get(`/sessions/${sessionId}`)
+    const params = userId ? `?user_id=${userId}` : ''
+    api.get(`/sessions/${sessionId}${params}`)
       .then((r) => setDetail(r.data))
       .catch(() => setError('Failed to load session details'))
       .finally(() => setLoading(false))
-  }, [sessionId])
+  }, [sessionId, userId])
 
   async function handleSaveEdit() {
     if (!detail) return
@@ -166,7 +169,8 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
           style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
           <h2 className="font-bold text-base">Session Details</h2>
           <div className="flex items-center gap-2">
-            {/* Edit button — everyone can edit their own sessions */}
+            {/* Edit button — only for own sessions */}
+            {!userId && (
             <button
               onClick={() => {
                 if (detail) {
@@ -184,6 +188,7 @@ export default function SessionDetailModal({ sessionId, onClose }: Props) {
             >
               {editing ? '✕' : '✏️'}
             </button>
+            )}
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"

@@ -1,21 +1,42 @@
 'use client'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import LevelBadge from '@/components/LevelBadge'
 import Avatar from '@/components/Avatar'
+import SessionDetailModal from '@/components/SessionDetailModal'
 import { useSSE } from '@/hooks/useSSE'
 import api from '@/lib/api'
 import type { LeaderboardEntry } from '@/lib/types'
 
 export default function LeaderboardPage() {
   useSSE()
+  const [selectedSession, setSelectedSession] = useState<number | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [viewUser, setViewUser] = useState<LeaderboardEntry | null>(null)
+  const [userSessions, setUserSessions] = useState<{ id: number; date: string; duration_minutes: number; exercises: { name: string }[] }[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
 
   const { data, isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ['leaderboard'],
     queryFn: () => api.get('/leaderboard').then((r) => r.data),
     refetchInterval: 60_000,
   })
+
+  async function handleViewUser(entry: LeaderboardEntry) {
+    setViewUser(entry)
+    setSelectedUserId(entry.id)
+    setLoadingSessions(true)
+    try {
+      const res = await api.get(`/sessions?limit=20&user_id=${entry.id}`)
+      setUserSessions(res.data)
+    } catch {
+      setUserSessions([])
+    } finally {
+      setLoadingSessions(false)
+    }
+  }
 
   if (isLoading || !data) {
     return (
@@ -56,18 +77,18 @@ export default function LeaderboardPage() {
 
             <div className="flex items-end justify-center gap-2 px-4 pb-6">
               {/* 2nd place */}
-              {podium[1] && <PodiumCard entry={podium[1]} place={2} />}
+              {podium[1] && <PodiumCard entry={podium[1]} place={2} onViewUser={handleViewUser} />}
               {/* 1st place */}
-              {podium[0] && <PodiumCard entry={podium[0]} place={1} />}
+              {podium[0] && <PodiumCard entry={podium[0]} place={1} onViewUser={handleViewUser} />}
               {/* 3rd place */}
-              {podium[2] && <PodiumCard entry={podium[2]} place={3} />}
+              {podium[2] && <PodiumCard entry={podium[2]} place={3} onViewUser={handleViewUser} />}
             </div>
 
             {/* Everyone below top 3 */}
             {byXP.slice(3).length > 0 && (
               <div className="border-t divide-y" style={{ borderColor: 'var(--border)' }}>
                 {byXP.slice(3).map((u, i) => (
-                  <RankRow key={u.id} entry={u} rank={i + 4} valueLabel={`${u.xp.toLocaleString()} XP`} />
+                  <RankRow key={u.id} entry={u} rank={i + 4} valueLabel={`${u.xp.toLocaleString()} XP`} onViewUser={handleViewUser} />
                 ))}
               </div>
             )}
@@ -78,6 +99,7 @@ export default function LeaderboardPage() {
             title="📅 This Week"
             entries={byWeekly}
             getValue={(u) => `${u.weekly_sessions} session${u.weekly_sessions !== 1 ? 's' : ''}`}
+            onViewUser={handleViewUser}
           />
 
           {/* ── This Month ───────────────────────────────────────────────── */}
@@ -85,10 +107,60 @@ export default function LeaderboardPage() {
             title="🗓️ This Month"
             entries={byMonthly}
             getValue={(u) => `${u.monthly_sessions} session${u.monthly_sessions !== 1 ? 's' : ''}`}
+            onViewUser={handleViewUser}
           />
 
         </div>
       </div>
+
+      {/* User Sessions Modal */}
+      {viewUser && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+          onClick={() => { setViewUser(null); setSelectedUserId(null); setUserSessions([]) }}>
+          <div className="w-full sm:max-w-lg sm:mx-4 rounded-t-3xl sm:rounded-2xl overflow-hidden"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', maxHeight: '80vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 z-10"
+              style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
+              <h2 className="font-bold text-base capitalize">{viewUser.username}'s Sessions</h2>
+              <button onClick={() => { setViewUser(null); setSelectedUserId(null); setUserSessions([]) }}
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="p-4">
+              {loadingSessions ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+                </div>
+              ) : userSessions.length === 0 ? (
+                <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>No sessions yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {userSessions.map((s) => (
+                    <button key={s.id}
+                      onClick={() => setSelectedSession(s.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-colors hover:bg-white/[0.03]"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                      <div className="min-w-0 flex-1 mr-3">
+                        <div className="font-semibold text-sm">{s.date}</div>
+                        <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+                          {s.exercises?.length || 0} exercise{(s.exercises?.length || 0) !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>{s.duration_minutes}m</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SessionDetailModal sessionId={selectedSession} userId={selectedUserId} onClose={() => setSelectedSession(null)} />
     </AuthGuard>
   )
 }
@@ -99,12 +171,13 @@ const PLACE_META = [
   { medal: '🥉', bg: 'rgba(180,120,40,0.08)',  border: 'rgba(180,120,40,0.2)',  height: 140 },
 ]
 
-function PodiumCard({ entry, place }: { entry: LeaderboardEntry; place: 1 | 2 | 3 }) {
+function PodiumCard({ entry, place, onViewUser }: { entry: LeaderboardEntry; place: 1 | 2 | 3; onViewUser: (e: LeaderboardEntry) => void }) {
   const meta = PLACE_META[place - 1]
   const order = place === 1 ? 'order-2' : place === 2 ? 'order-1' : 'order-3'
   return (
-    <div className={`flex-1 max-w-[120px] ${order} rounded-2xl flex flex-col items-center pt-4 pb-3 px-2 transition-all`}
-      style={{ background: meta.bg, border: `1px solid ${meta.border}`, height: meta.height, justifyContent: 'flex-end' }}>
+    <button className={`flex-1 max-w-[120px] ${order} rounded-2xl flex flex-col items-center pt-4 pb-3 px-2 transition-all hover:scale-105`}
+      style={{ background: meta.bg, border: `1px solid ${meta.border}`, height: meta.height, justifyContent: 'flex-end' }}
+      onClick={() => onViewUser(entry)}>
       <div className="text-2xl mb-1">{meta.medal}</div>
       <Avatar username={entry.username} size="sm" avatarUrl={entry.avatar_url} />
       <div className="font-bold text-xs capitalize mt-1.5 truncate max-w-full text-center">{entry.username}</div>
@@ -115,16 +188,17 @@ function PodiumCard({ entry, place }: { entry: LeaderboardEntry; place: 1 | 2 | 
       <div className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
         🔥{entry.current_streak}d
       </div>
-    </div>
+    </button>
   )
 }
 
 function RankSection({
-  title, entries, getValue
+  title, entries, getValue, onViewUser
 }: {
   title: string
   entries: LeaderboardEntry[]
   getValue: (e: LeaderboardEntry) => string
+  onViewUser: (e: LeaderboardEntry) => void
 }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
@@ -135,7 +209,7 @@ function RankSection({
       </div>
       <div className="border-t divide-y" style={{ borderColor: 'var(--border)' }}>
         {entries.map((u, i) => (
-          <RankRow key={u.id} entry={u} rank={i + 1} valueLabel={getValue(u)} />
+          <RankRow key={u.id} entry={u} rank={i + 1} valueLabel={getValue(u)} onViewUser={onViewUser} />
         ))}
       </div>
     </div>
@@ -144,7 +218,7 @@ function RankSection({
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-function RankRow({ entry, rank, valueLabel }: { entry: LeaderboardEntry; rank: number; valueLabel: string }) {
+function RankRow({ entry, rank, valueLabel, onViewUser }: { entry: LeaderboardEntry; rank: number; valueLabel: string; onViewUser: (e: LeaderboardEntry) => void }) {
   return (
     <div className="flex items-center gap-3 px-5 py-3.5">
       <div className="text-lg w-7 text-center flex-shrink-0">
@@ -152,7 +226,13 @@ function RankRow({ entry, rank, valueLabel }: { entry: LeaderboardEntry; rank: n
       </div>
       <Avatar username={entry.username} size="sm" avatarUrl={entry.avatar_url} />
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm capitalize truncate">{entry.username}</div>
+        <button
+          onClick={() => onViewUser(entry)}
+          className="font-semibold text-sm capitalize truncate text-left hover:underline"
+          style={{ color: 'var(--accent)' }}
+        >
+          {entry.username}
+        </button>
         <div className="mt-0.5">
           <LevelBadge level={entry.level} size="sm" />
         </div>

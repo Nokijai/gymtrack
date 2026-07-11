@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import json
 import datetime
+import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,8 @@ from app.engine_fatigue import calculate_muscle_fatigue
 from app.engine_overload import calculate_next_targets
 from app.engine_plateau import check_plateau
 
+logger = logging.getLogger(__name__)
+
 try:
     from openai import OpenAI
     _openai_available = True
@@ -21,29 +24,88 @@ except ImportError:
     _openai_available = False
 
 
+# ---- AI Safety Configuration ------------------------------------------------
+MEDICAL_ESCALATION_KEYWORDS = [
+    "chest pain", "fainting", "severe shortness of breath",
+    "dizziness", "numbness", "sharp pain", "heart", "stroke",
+    "seizure", "unconscious", "medical emergency"
+]
+
+MEDICAL_ESCALATION_RESPONSE = """
+⚠️ **Medical Safety Notice**
+
+I noticed you mentioned a potentially serious symptom. For your safety, I cannot provide workout advice for this situation.
+
+**Please consult a medical professional before continuing training.**
+
+If this is a medical emergency, please seek immediate medical attention or call emergency services.
+
+Your health and safety are the top priority.
+"""
+
+AI_UNAVAILABLE_RESPONSE = """
+AI coach is temporarily unavailable. You can still log workouts and track progress.
+
+**Quick suggestions:**
+- Focus on proper form and controlled movements
+- Listen to your body and rest when needed
+- Stay hydrated and maintain good nutrition
+
+The AI coach will be back soon!
+"""
+
+
+def check_medical_escalation(text: str) -> bool:
+    """Check if user input contains medical emergency keywords"""
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in MEDICAL_ESCALATION_KEYWORDS)
+
+
+def sanitize_session_data(session_data: dict) -> dict:
+    """Remove PII before sending to AI provider"""
+    return {
+        "date": session_data.get("date"),
+        "duration_min": session_data.get("duration_minutes"),
+        "exercises": [
+            {
+                "name": ex.get("name"),
+                "sets": ex.get("sets"),
+                "reps": ex.get("reps"),
+                "weight_kg": ex.get("weight_kg"),
+            }
+            for ex in session_data.get("exercises", [])
+        ]
+    }
+
+
 def _get_client():
     api_key = os.environ.get("AI_API_KEY", "")
+    base_url = os.environ.get("AI_BASE_URL", "https://yuanyuaicloud.cn/v1")
     if not api_key or not _openai_available:
         return None
-    return OpenAI(api_key=api_key, base_url="https://api.silra.cn/v1")
+    return OpenAI(api_key=api_key, base_url=base_url)
 
 
 def _call_ai(messages: list[dict], max_tokens: int = 600) -> str:
     """Call AI API and return text response. Falls back to helpful message if unavailable."""
     client = _get_client()
     if not client:
-        return "AI coach is currently unavailable. Please check your API configuration."
+        logger.warning("AI client not available")
+        return AI_UNAVAILABLE_RESPONSE
 
     try:
         response = client.chat.completions.create(
-            model="deepseek-v3",
+            model="glm-5.2",
             messages=messages,
             max_tokens=max_tokens,
             temperature=0.7,
         )
-        return response.choices[0].message.content or "No response generated."
+        result = response.choices[0].message.content or "No response generated."
+        logger.info(f"AI call successful, response length: {len(result)}")
+        return result
     except Exception as e:
-        return f"AI coach temporarily unavailable: {str(e)[:100]}"
+        logger.error(f"AI call failed: {str(e)[:100]}")
+        return AI_UNAVAILABLE_RESPONSE
 
 
 def _get_recent_sessions_summary(user_id: int, db: Session, days: int = 7) -> list[dict]:
@@ -337,15 +399,20 @@ Respond in the same language as the user's message."""
 
     # Build messages array
     messages = [{"role": "system", "content": system_prompt}]
-
+    
     # Add conversation history (limit to last 10 messages to stay within context)
     for msg in conversation_history[-10:]:
         if msg.get("role") in ("user", "assistant") and msg.get("content"):
             messages.append({"role": msg["role"], "content": msg["content"]})
-
+    
+    # Check for medical escalation in user message
+    if check_medical_escalation(message):
+        logger.warning(f"Medical escalation detected for user {user_id}")
+        return MEDICAL_ESCALATION_RESPONSE
+    
     # Add current message
     messages.append({"role": "user", "content": message})
-
+    
     return _call_ai(messages, max_tokens=500)
 
 

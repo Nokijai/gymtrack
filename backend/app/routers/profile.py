@@ -166,6 +166,42 @@ def get_exercise_history(
             (m.muscle_group_id, bool(m.is_primary))
         )
 
+    # Fallback category by exercise name keywords (when muscle_groups table is empty)
+    def fallback_category(name: str) -> str:
+        n = name.lower().strip()
+        # Cardio — match whole words or full machine names
+        if any(k in n for k in ['treadmill', 'run', 'jog', 'bike', 'cycling',
+                                  'elliptical', 'stair.climber', 'hiit', 'burpee',
+                                  'sprint', 'outdoor.run', 'box.jump', 'jump.rope',
+                                  '跳繩', '跑步', '單車', '自行車', '橢圓',
+                                  '爬樓', '波比', '短跑', '衝刺', '跳箱']):
+            return 'cardio'
+        # Rowing machine specifically
+        if n in ['rowing', 'rowing machine', 'rowing machine', '划船機']:
+            return 'cardio'
+        # Push
+        if any(k in n for k in ['bench', 'press', 'push', 'fly', 'pec', 'chest',
+                                  'tricep', 'dip', 'skull', 'kickback',
+                                  '臥推', '推舉', '俯臥', '夾胸', '飛鳥', '三頭',
+                                  '臂屈伸', '撐起', '下壓']):
+            return 'push'
+        # Pull — 'row' here means cable/bar row (pull exercise), not rowing machine
+        if any(k in n for k in ['pull', 'row', 'lat', 'deadlift', 'chin', 'face',
+                                  'curl', 'shrug', '划船', '下拉', '引體', '硬舉',
+                                  '彎舉', '聳肩', '麪拉']):
+            return 'pull'
+        # Legs
+        if any(k in n for k in ['squat', 'leg', 'lunge', 'calf', 'quad', 'hamstring',
+                                  'glute', 'hip', 'thrust', 'abductor', 'deadlift',
+                                  '深蹲', '腿', '弓箭步', '提踵', '臀', '硬舉']):
+            return 'legs'
+        # Core
+        if any(k in n for k in ['crunch', 'plank', 'ab', 'core', 'twist', 'wheel',
+                                  'v.up', 'dead.bug', 'mountain', 'flag', 'raise',
+                                  '卷腹', '平板', '核心', '轉體', '腹輪', '舉腿']):
+            return 'core'
+        return 'other'
+
     # Query all sessions with exercises for this user
     sessions = (
         db.query(WorkoutSession)
@@ -199,7 +235,7 @@ def get_exercise_history(
                     "name_cn": cn,
                     "muscle_group": primary_muscle.name_en if primary_muscle else "Other",
                     "muscle_group_cn": primary_muscle.name_cn if primary_muscle else "其他",
-                    "category": primary_muscle.category if primary_muscle else "other",
+                    "category": primary_muscle.category if primary_muscle else fallback_category(key),
                     "history": [],
                 }
 
@@ -220,11 +256,11 @@ def get_exercise_history(
             else:
                 w = float(ex.weight_kg or 0)
                 r = float(ex.reps or 0)
-                s = float(ex.sets or 1)
-                volume = w * r * s
+                sets = float(ex.sets or 1)
+                volume = w * r * sets
                 max_weight = w
-                total_reps = r * s
-                sets_count = int(s)
+                total_reps = r * sets
+                sets_count = int(sets)
 
             exercise_history[key]["history"].append({
                 "date": s.date,
