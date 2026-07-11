@@ -90,6 +90,31 @@ class ProgramWeek(Base):
     notes = Column(Text, nullable=True)
     
     program = relationship("TrainingProgram", back_populates="weeks")
+    workouts = relationship("ProgramWorkout", back_populates="week", cascade="all, delete-orphan")
+
+
+class ProgramWorkout(Base):
+    """Individual workout scheduled in a program week"""
+    __tablename__ = "program_workouts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    program_id = Column(Integer, ForeignKey("training_programs.id"), nullable=False)
+    week_id = Column(Integer, ForeignKey("program_weeks.id"), nullable=False)
+    week_number = Column(Integer, nullable=False)
+    day_number = Column(Integer, nullable=False)  # Day within the week (1-7)
+    scheduled_date = Column(String(10), nullable=False)  # YYYY-MM-DD
+    workout_template_id = Column(Integer, ForeignKey("workout_templates.id"), nullable=True)
+    is_rest_day = Column(Boolean, default=False)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
+    actual_session_id = Column(Integer, ForeignKey("sessions.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    
+    program = relationship("TrainingProgram", backref="program_workouts")
+    week = relationship("ProgramWeek", back_populates="workouts")
+    template = relationship("WorkoutTemplate")
 
 
 # ─── 3. Exercise Library ──────────────────────────────────────────────────

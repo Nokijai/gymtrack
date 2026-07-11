@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database import init_db
 from app.routers import auth, sessions, dashboard, leaderboard, admin, profile
 from app.routers import ai as ai_router
+from app.routers import programs
 from app import sse
 
 # Configure structured logging
@@ -94,6 +95,7 @@ app.include_router(sse.router)
 app.include_router(admin.router)
 app.include_router(profile.router)
 app.include_router(ai_router.router)
+app.include_router(programs.router)
 
 
 UPLOAD_ROOT = os.environ.get("UPLOAD_ROOT", "/app/uploads")
