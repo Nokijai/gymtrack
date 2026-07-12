@@ -1,9 +1,10 @@
-// Program components - part 2
+// Program components - no circular imports
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import type { WorkoutTemplate } from '@/lib/types'
-import { LoadingState, EmptyState } from './page'
+
+// ═══ Program Card ═════════════════════════════════════════════════
 
 export function ProgramCard({ program }: { program: any }) {
   return (
@@ -37,6 +38,8 @@ export function ProgramCard({ program }: { program: any }) {
   )
 }
 
+// ═══ Templates List ═════════════════════════════════════════════════
+
 export function TemplatesList() {
   const { data: templates, isLoading } = useQuery({
     queryKey: ['templates'],
@@ -46,7 +49,7 @@ export function TemplatesList() {
     },
   })
 
-  if (isLoading) return <LoadingState />
+  if (isLoading) return <div className="text-center py-8 text-sm" style={{color:'var(--text-muted)'}}>Loading...</div>
 
   return (
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -68,13 +71,15 @@ export function TemplatesList() {
           </div>
         ))
       ) : (
-        <div className="col-span-full">
-          <EmptyState message="No templates" hint="Browse public templates to get started" />
+        <div className="col-span-full text-center py-12 rounded-lg" style={{background:'var(--bg-surface)'}}>
+          <p className="text-sm" style={{color:'var(--text-muted)'}}>No templates</p>
         </div>
       )}
     </div>
   )
 }
+
+// ═══ Calendar View ══════════════════════════════════════════════════
 
 export function CalendarView() {
   const today = new Date()
@@ -89,7 +94,7 @@ export function CalendarView() {
     },
   })
 
-  if (isLoading) return <LoadingState />
+  if (isLoading) return <div className="text-center py-8 text-sm" style={{color:'var(--text-muted)'}}>Loading calendar...</div>
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -106,16 +111,24 @@ export function CalendarView() {
       {calendar && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { label: 'Planned', value: calendar.calendar.total_workouts_planned },
-              { label: 'Done', value: calendar.calendar.total_workouts_completed },
-              { label: 'Adherence', value: `${(calendar.calendar.overall_adherence || 0).toFixed(0)}%` },
-            ].map((s) => (
-              <div key={s.label} className="rounded-lg p-4" style={{ background: 'var(--bg-surface)' }}>
-                <div className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>{s.value}</div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
+            <div className="rounded-lg p-4" style={{ background: 'var(--bg-surface)' }}>
+              <div className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>
+                {calendar.calendar.total_workouts_planned}
               </div>
-            ))}
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Planned</div>
+            </div>
+            <div className="rounded-lg p-4" style={{ background: 'var(--bg-surface)' }}>
+              <div className="text-2xl font-semibold" style={{ color: '#22c55e' }}>
+                {calendar.calendar.total_workouts_completed}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Done</div>
+            </div>
+            <div className="rounded-lg p-4" style={{ background: 'var(--bg-surface)' }}>
+              <div className="text-2xl font-semibold" style={{ color: 'var(--accent)' }}>
+                {(calendar.calendar.overall_adherence || 0).toFixed(0)}%
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Adherence</div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -144,84 +157,6 @@ export function CalendarView() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ═══ Helper Components ═════════════════════════════════════════════════
-
-function LoadingState() {
-  return <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
-}
-
-function EmptyState({ message, hint }: { message: string; hint: string }) {
-  return (
-    <div className="text-center py-12 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{message}</p>
-      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>{hint}</p>
-    </div>
-  )
-}
-
-function CreateModal({ onClose, onCreate, loading }: {
-  onClose: () => void
-  onCreate: (d: { name: string; goal: string; weeks: number }) => void
-  loading: boolean
-}) {
-  const [goal, setGoal] = useState('strength')
-  const [weeks, setWeeks] = useState(8)
-
-  const goals = [
-    { value: 'strength', label: 'Strength' },
-    { value: 'hypertrophy', label: 'Muscle Building' },
-    { value: 'endurance', label: 'Endurance' },
-    { value: 'general_fitness', label: 'General Fitness' },
-  ]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative rounded-lg p-6 w-full max-w-md space-y-4"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h2 className="font-semibold" style={{ color: 'var(--text)' }}>Create Program</h2>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Goal</label>
-            <div className="grid grid-cols-2 gap-2">
-              {goals.map((g) => (
-                <button key={g.value} onClick={() => setGoal(g.value)}
-                  className="px-3 py-2 rounded text-sm"
-                  style={{
-                    background: goal === g.value ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                    color: goal === g.value ? '#fff' : 'var(--text-muted)',
-                  }}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-              Duration: {weeks} weeks
-            </label>
-            <input type="range" min={4} max={24} value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}
-              className="w-full" />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded text-sm"
-            style={{ color: 'var(--text-muted)' }}>Cancel</button>
-          <button onClick={() => onCreate({ name: `${goal} Program`, goal, weeks })}
-            disabled={loading}
-            className="flex-1 py-2 rounded text-sm font-medium"
-            style={{ background: 'var(--accent)', color: '#fff', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Creating...' : 'Create'}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

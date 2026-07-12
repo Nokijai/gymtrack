@@ -5,7 +5,7 @@ import Nav from '@/components/Nav'
 import AuthGuard from '@/components/AuthGuard'
 import api from '@/lib/api'
 import type { WorkoutTemplate, TrainingProgram } from '@/lib/types'
-import { ProgramCard, TemplatesList, CalendarView, LoadingState, EmptyState, CreateModal } from './components'
+import { ProgramCard, TemplatesList, CalendarView } from './components'
 
 export default function ProgramsPage() {
   const [activeTab, setActiveTab] = useState<'programs' | 'templates' | 'calendar'>('programs')
@@ -75,7 +75,7 @@ function ProgramsList() {
     },
   })
 
-  if (isLoading) return <LoadingState />
+  if (isLoading) return <div className="text-center py-8 text-sm" style={{color:'var(--text-muted)'}}>Loading...</div>
 
   return (
     <div className="space-y-4">
@@ -90,7 +90,10 @@ function ProgramsList() {
           {programs.map((p) => <ProgramCard key={p.id} program={p} />)}
         </div>
       ) : (
-        <EmptyState message="No programs yet" hint="Create your first training program" />
+        <div className="text-center py-12 rounded-lg" style={{background:'var(--bg-surface)'}}>
+          <p className="text-sm" style={{color:'var(--text-muted)'}}>No programs yet</p>
+          <p className="text-xs mt-1" style={{color:'var(--text-muted)',opacity:0.7}}>Create your first training program</p>
+        </div>
       )}
 
       {showCreate && (
@@ -100,6 +103,71 @@ function ProgramsList() {
           loading={createMutation.isPending}
         />
       )}
+    </div>
+  )
+}
+
+// ═══ Create Modal ═══════════════════════════════════════════════════
+
+function CreateModal({ onClose, onCreate, loading }: {
+  onClose: () => void
+  onCreate: (d: { name: string; goal: string; weeks: number }) => void
+  loading: boolean
+}) {
+  const [goal, setGoal] = useState('strength')
+  const [weeks, setWeeks] = useState(8)
+
+  const goals = [
+    { value: 'strength', label: 'Strength' },
+    { value: 'hypertrophy', label: 'Muscle Building' },
+    { value: 'endurance', label: 'Endurance' },
+    { value: 'general_fitness', label: 'General Fitness' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative rounded-lg p-6 w-full max-w-md space-y-4"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        <h2 className="font-semibold" style={{ color: 'var(--text)' }}>Create Program</h2>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Goal</label>
+            <div className="grid grid-cols-2 gap-2">
+              {goals.map((g) => (
+                <button key={g.value} onClick={() => setGoal(g.value)}
+                  className="px-3 py-2 rounded text-sm"
+                  style={{
+                    background: goal === g.value ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                    color: goal === g.value ? '#fff' : 'var(--text-muted)',
+                  }}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+              Duration: {weeks} weeks
+            </label>
+            <input type="range" min={4} max={24} value={weeks}
+              onChange={(e) => setWeeks(Number(e.target.value))} className="w-full" />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2 rounded text-sm"
+            style={{ color: 'var(--text-muted)' }}>Cancel</button>
+          <button onClick={() => onCreate({ name: `${goal} Program`, goal, weeks })}
+            disabled={loading}
+            className="flex-1 py-2 rounded text-sm font-medium"
+            style={{ background: 'var(--accent)', color: '#fff', opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Creating...' : 'Create'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
