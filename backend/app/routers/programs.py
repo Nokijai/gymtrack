@@ -512,7 +512,7 @@ def get_calendar(
             day_date = current + timedelta(days=i)
             pw = program_workouts_by_date.get(day_date)
 
-            from app.models import WorkoutSession
+            from app.database import WorkoutSession
             actual_session = db.query(WorkoutSession).filter(
                 WorkoutSession.user_id == current_user.id,
                 func.date(WorkoutSession.started_at) == day_date,
