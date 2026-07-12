@@ -6,8 +6,6 @@ import api from '@/lib/api'
 
 interface AISummaryCardProps<T> {
   title: string
-  icon?: string
-  badge?: string
   queryKey: string[]
   endpoint: string
   staleTime?: number
@@ -21,14 +19,12 @@ interface AISummaryCardProps<T> {
 // User-triggered AI fetch — avoids hitting /ai/* on every page navigation.
 export default function AISummaryCard<T>({
   title,
-  icon = '🤖',
-  badge,
   queryKey,
   endpoint,
   staleTime = 10 * 60 * 1000,
-  promptText = '点击获取 AI 分析与建议',
-  buttonText = '获取 AI 建议',
-  className = 'rounded-2xl p-5 relative overflow-hidden',
+  promptText = 'Click to get AI recommendations',
+  buttonText = 'Generate',
+  className = 'card p-4 relative overflow-hidden',
   style,
   children,
 }: AISummaryCardProps<T>) {
@@ -43,47 +39,49 @@ export default function AISummaryCard<T>({
   })
 
   return (
-    <div className={className} style={style ?? { background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)' }} />
-
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">{icon}</span>
-        <h2 className="font-bold text-base">{title}</h2>
-        {badge && (
-          <span className="text-xs px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(59,130,246,0.15)', color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.3)' }}>
-            {badge}
+    <div className={className} style={style}>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          {title}
+        </h2>
+        {!requested && (
+          <span
+            className="text-[10px] px-2 py-0.5 rounded-full"
+            style={{
+              background: 'var(--bg-hover)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            AI
           </span>
         )}
       </div>
 
       {!requested ? (
-        <div className="space-y-3">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{promptText}</p>
+        <div className="space-y-2.5">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {promptText}
+          </p>
           <button
             onClick={() => setRequested(true)}
-            className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-95"
-            style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 14px var(--accent-glow)' }}
+            className="btn btn-primary text-xs"
           >
             {buttonText}
           </button>
         </div>
       ) : isFetching ? (
-        <div className="space-y-2">
-          <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '85%' }} />
-          <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '70%' }} />
-          <div className="h-4 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '55%' }} />
+        <div className="space-y-1.5">
+          <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '85%' }} />
+          <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '70%' }} />
+          <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '55%' }} />
         </div>
       ) : isError ? (
-        <div className="space-y-3">
-          <p className="text-sm" style={{ color: '#f87171' }}>AI 建议加载失败，请稍后再试</p>
-          <button
-            onClick={() => refetch()}
-            className="rounded-xl px-4 py-2 text-sm font-semibold"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-          >
-            重试
+        <div className="space-y-2">
+          <p className="text-xs" style={{ color: 'var(--red)' }}>
+            Failed to load. Please try again.
+          </p>
+          <button onClick={() => refetch()} className="btn btn-ghost text-xs">
+            Retry
           </button>
         </div>
       ) : (

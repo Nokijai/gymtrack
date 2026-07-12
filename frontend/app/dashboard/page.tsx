@@ -38,8 +38,7 @@ interface WeeklySummary {
   }
 }
 
-const READINESS_EMOJIS = ['😴', '😐', '🙂', '💪', '🔥']
-const READINESS_LABELS = ['很疲憊', '普通', '還不錯', '很好', '超燃!']
+const READINESS_LABELS = ['Tired', 'Okay', 'Good', 'Great', 'Ready']
 const READINESS_DATE_KEY = 'gymtrack_readiness_date'
 
 // ─── Readiness Modal ─────────────────────────────────────────────────────────
@@ -62,38 +61,40 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
-        className="relative rounded-3xl p-7 w-full max-w-sm space-y-5"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="relative rounded-lg p-6 w-full max-w-sm"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
       >
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-1">今日狀態如何？</h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>幫助AI為你制定最佳訓練計劃</p>
-        </div>
+        <h2 className="text-sm font-semibold mb-1">How are you feeling today?</h2>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          Helps us recommend the right workout
+        </p>
 
-        <div className="flex justify-around py-2">
-          {READINESS_EMOJIS.map((emoji, i) => {
-            const score = i + 1
+        <div className="flex justify-between mb-4">
+          {[1, 2, 3, 4, 5].map((score) => {
             const isSelected = selected === score
             return (
               <button
                 key={score}
                 onClick={() => setSelected(score)}
-                className="flex flex-col items-center gap-1 transition-all"
+                className="flex flex-col items-center gap-1"
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-150"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium transition-all"
                   style={{
-                    background: isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                    transform: isSelected ? 'scale(1.2)' : 'scale(1)',
-                    boxShadow: isSelected ? '0 4px 16px var(--accent-glow)' : 'none',
+                    background: isSelected ? 'var(--accent)' : 'var(--bg-hover)',
+                    color: isSelected ? '#fff' : 'var(--text-secondary)',
+                    border: isSelected ? 'none' : '1px solid var(--border)',
                   }}
                 >
-                  {emoji}
+                  {score}
                 </div>
-                <span className="text-[10px]" style={{ color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }}>
-                  {READINESS_LABELS[i]}
+                <span
+                  className="text-[10px]"
+                  style={{ color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }}
+                >
+                  {READINESS_LABELS[score - 1]}
                 </span>
               </button>
             )
@@ -103,24 +104,13 @@ function ReadinessModal({ onClose }: { onClose: () => void }) {
         <button
           onClick={submit}
           disabled={!selected || submitting}
-          className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
-          style={{
-            background: selected ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
-            color: selected ? '#fff' : 'var(--text-muted)',
-            boxShadow: selected ? '0 6px 20px var(--accent-glow)' : 'none',
-          }}
+          className="btn btn-primary w-full py-2"
+          style={{ opacity: !selected || submitting ? 0.5 : 1 }}
         >
-          {submitting ? '保存中...' : '確認 →'}
+          {submitting ? 'Saving…' : 'Continue'}
         </button>
       </div>
     </div>
-  )
-}
-
-// ─── Skeleton ────────────────────────────────────────────────────────────────
-function Skeleton({ className = '' }: { className?: string }) {
-  return (
-    <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'rgba(255,255,255,0.08)' }} />
   )
 }
 
@@ -157,7 +147,7 @@ export default function DashboardPage() {
     return (
       <AuthGuard>
         <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
-          <Spinner />
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
         </div>
       </AuthGuard>
     )
@@ -165,10 +155,10 @@ export default function DashboardPage() {
 
   const { user, total_sessions, total_minutes, recent_sessions, weekly_data } = data
   const currentLevelXP = xpForLevel(user.level)
-  const nextLevelXP    = xpForNextLevel(user.level)
-  const xpInLevel      = user.xp - currentLevelXP
-  const xpNeeded       = nextLevelXP - currentLevelXP
-  const xpPct          = user.level >= 50 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
+  const nextLevelXP = xpForNextLevel(user.level)
+  const xpInLevel = user.xp - currentLevelXP
+  const xpNeeded = nextLevelXP - currentLevelXP
+  const xpPct = user.level >= 50 ? 100 : Math.min(100, Math.round((xpInLevel / xpNeeded) * 100))
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
 
@@ -177,70 +167,96 @@ export default function DashboardPage() {
       {showReadiness && <ReadinessModal onClose={() => setShowReadiness(false)} />}
       <BadgeUnlockPopup />
 
-      <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
+      <div className="min-h-screen page-fade" style={{ background: 'var(--bg-base)' }}>
         <Nav />
 
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-8">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-12">
 
-          {/* ── Hero: user card ───────────────────────────────────────── */}
-          <div className="rounded-2xl p-5 relative overflow-hidden"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)' }} />
-
-            <div className="flex items-center gap-4 relative">
-              <Avatar username={user.username} size="lg" avatarUrl={user.avatar_url} />
+          {/* ── User card ──────────────────────────────────────────── */}
+          <div className="card p-4">
+            <div className="flex items-center gap-3">
+              <Avatar username={user.username} size="md" avatarUrl={user.avatar_url} />
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold capitalize truncate">
-                  Hey, {user.username} 👋
+                <h1 className="text-sm font-semibold truncate capitalize" style={{ color: 'var(--text)' }}>
+                  {user.username}
                 </h1>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <div className="flex items-center gap-2 mt-1">
                   <LevelBadge level={user.level} size="sm" />
                   <XPBadge xp={user.xp} size="sm" />
                 </div>
+              </div>
+              <Link href="/log" className="btn btn-primary text-xs" style={{ padding: '5px 10px' }}>
+                Log workout
+              </Link>
+            </div>
 
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                    <span>{user.level >= 50 ? 'MAX LEVEL' : `${xpInLevel} / ${xpNeeded} XP to Lv.${user.level + 1}`}</span>
-                    <span>{xpPct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <div className="h-full rounded-full transition-all duration-700 progress-shimmer"
-                      style={{ width: `${xpPct}%` }} />
-                  </div>
-                </div>
+            {/* XP bar */}
+            <div className="mt-3">
+              <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                <span>
+                  {user.level >= 50
+                    ? 'Max level'
+                    : `${xpInLevel.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`}
+                </span>
+                <span>{xpPct}%</span>
+              </div>
+              <div
+                className="h-1 rounded-full overflow-hidden"
+                style={{ background: 'var(--bg-hover)' }}
+              >
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${xpPct}%`,
+                    background: 'var(--accent)',
+                  }}
+                />
               </div>
             </div>
 
+            {/* Active timer banner */}
             {isRunning && (
-              <Link href="/log" className="flex items-center gap-2 mt-4 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
-                style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}>
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+              <Link
+                href="/log"
+                className="flex items-center gap-2 mt-3 rounded-md px-3 py-2 text-xs font-medium"
+                style={{
+                  background: 'rgba(34,166,69,0.1)',
+                  border: '1px solid rgba(34,166,69,0.2)',
+                  color: 'var(--green)',
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--green)' }} />
                 Workout in progress — tap to resume
               </Link>
             )}
           </div>
 
-          {/* ── AI Train Today Card ───────────────────────────────────── */}
+          {/* ── AI Today Card ──────────────────────────────────────── */}
           <AISummaryCard<TodayRec>
-            title="今日訓練建議"
+            title="Today's recommendation"
             queryKey={['ai-today']}
             endpoint="/ai/today"
-            className="rounded-2xl overflow-hidden"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-            promptText="獲取基於你訓練記錄的今日建議"
+            className="card p-4"
+            promptText="Get AI recommendations based on your training history"
           >
-            {(todayData) => (
+            {(todayData) =>
               todayData?.recommendation ? (
                 <>
-                  <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>
                     {todayData.recommendation}
                   </p>
                   {todayData.suggested_exercises.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {todayData.suggested_exercises.slice(0, 4).map((ex) => (
-                        <span key={ex} className="text-xs px-2.5 py-1 rounded-full"
-                          style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                        <span
+                          key={ex}
+                          className="text-xs px-2.5 py-1 rounded-full"
+                          style={{
+                            background: 'rgba(34,166,69,0.1)',
+                            color: 'var(--green)',
+                            border: '1px solid rgba(34,166,69,0.2)',
+                          }}
+                        >
                           {ex}
                         </span>
                       ))}
@@ -249,85 +265,110 @@ export default function DashboardPage() {
                 </>
               ) : (
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  完成首次訓練後獲取AI建議 💪
+                  Complete your first workout to get AI recommendations.
                 </p>
               )
-            )}
+            }
           </AISummaryCard>
 
-          {/* ── Stats grid ───────────────────────────────────────────── */}
+          {/* ── Stats grid ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
-            <StatCard icon="💪" label="Total Sessions" value={total_sessions.toString()} />
-            <StatCard icon="⏱️" label="Total Hours" value={(total_minutes / 60).toFixed(1)} />
-            <StatCard icon="🔥" label="Current Streak" value={`${user.current_streak}d`} accent={user.current_streak > 0} accentColor="#f97316" />
-            <StatCard icon="🏆" label="Best Streak" value={`${user.longest_streak}d`} />
+            <StatCard label="Sessions" value={total_sessions.toString()} />
+            <StatCard label="Hours" value={(total_minutes / 60).toFixed(1)} />
+            <StatCard
+              label="Streak"
+              value={`${user.current_streak}d`}
+              accent={user.current_streak > 0}
+            />
+            <StatCard label="Best streak" value={`${user.longest_streak}d`} />
           </div>
 
-          {/* ── Weekly bar chart ─────────────────────────────────────── */}
-          <div className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              This Week
-            </h2>
-            <ResponsiveContainer width="100%" height={160}>
+          {/* ── Weekly bar chart ───────────────────────────────────── */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                This week
+              </h2>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {weekly_data.reduce((sum, d) => sum + d.minutes, 0)} min
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
               <BarChart data={weekly_data} barGap={4}>
-                <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis hide />
                 <Tooltip
-                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                  contentStyle={{ background: '#1e1e2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 12 }}
+                  cursor={{ fill: 'var(--bg-hover)' }}
+                  contentStyle={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    boxShadow: 'var(--shadow-md)',
+                  }}
                   labelStyle={{ color: 'var(--text)' }}
                   formatter={(v: any) => [`${v} min`, 'Duration']}
                 />
-                <Bar dataKey="minutes" radius={[5, 5, 0, 0]} maxBarSize={32}>
+                <Bar dataKey="minutes" radius={[3, 3, 0, 0]} maxBarSize={28}>
                   {weekly_data.map((entry) => (
-                    <Cell key={entry.day} fill={entry.day === today ? 'var(--accent)' : 'rgba(59,130,246,0.3)'} />
+                    <Cell
+                      key={entry.day}
+                      fill={entry.day === today ? 'var(--accent)' : 'var(--bg-hover)'}
+                    />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* ── AI Weekly Summary Card ────────────────────────────────── */}
+          {/* ── AI Weekly Summary ──────────────────────────────────── */}
           <AISummaryCard<WeeklySummary>
-            title="本週總結"
-            icon="📊"
+            title="Weekly summary"
             queryKey={['ai-weekly']}
             endpoint="/ai/weekly-summary"
             staleTime={30 * 60 * 1000}
-            className="rounded-2xl p-5"
-            style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.06) 100%)', border: '1px solid rgba(59,130,246,0.2)' }}
-            promptText="查看 AI 對你本週訓練的總結"
-            buttonText="生成本週總結"
+            className="card p-4"
+            promptText="Generate an AI summary of your week"
+            buttonText="Generate summary"
           >
-            {(weeklyData) => (
+            {(wd) => (
               <>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  {weeklyData?.summary_text || '暫無本週數據'}
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {wd?.summary_text || 'No data this week yet.'}
                 </p>
-                {weeklyData?.stats && (
+                {wd?.stats && (
                   <div className="mt-3 flex gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <span>💪 {weeklyData.stats.total_sessions} sessions</span>
-                    <span>⏱ {weeklyData.stats.total_minutes} min</span>
-                    <span>🏋️ {weeklyData.stats.total_volume_kg}kg lifted</span>
+                    <span>{wd.stats.total_sessions} sessions</span>
+                    <span>{wd.stats.total_minutes} min</span>
+                    <span>{wd.stats.total_volume_kg.toLocaleString()} kg</span>
                   </div>
                 )}
               </>
             )}
           </AISummaryCard>
 
-          {/* ── Recent sessions ──────────────────────────────────────── */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                Recent Sessions
+          {/* ── Recent sessions ────────────────────────────────────── */}
+          <div className="card overflow-hidden">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Recent sessions
               </h2>
-              <Link href="/profile" className="text-xs font-medium" style={{ color: 'var(--accent)' }}>View all</Link>
+              <Link href="/profile" className="text-xs link">
+                View all
+              </Link>
             </div>
 
             {recent_sessions.length === 0 ? (
-              <div className="px-5 pb-5 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <div className="px-4 pb-4 text-sm" style={{ color: 'var(--text-muted)' }}>
                 No sessions yet.{' '}
-                <Link href="/log" style={{ color: 'var(--accent)' }}>Log your first one!</Link>
+                <Link href="/log" style={{ color: 'var(--accent)' }}>
+                  Log your first one
+                </Link>
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -335,19 +376,22 @@ export default function DashboardPage() {
                   <button
                     key={s.id}
                     onClick={() => setSelectedSession(s.id)}
-                    className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-white/[0.03] min-h-[60px]"
+                    className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
+                    style={{ color: 'var(--text)' }}
                   >
                     <div className="min-w-0 flex-1 mr-3">
-                      <div className="font-semibold text-sm">{s.date}</div>
+                      <div className="text-sm font-medium">{s.date}</div>
                       <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
                         {s.exercises.length} exercise{s.exercises.length !== 1 ? 's' : ''}
                         {s.notes ? ` · ${s.notes}` : ''}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{s.duration_minutes}m</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                        {s.duration_minutes}m
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </div>
                   </button>
@@ -359,37 +403,35 @@ export default function DashboardPage() {
       </div>
 
       <SessionDetailModal sessionId={selectedSession} onClose={() => setSelectedSession(null)} />
-
-      {/* ── AI Coach Chat ────────────────────────────────────────────── */}
       <CoachChat />
     </AuthGuard>
   )
 }
 
-function StatCard({ icon, label, value, accent = false, accentColor }: {
-  icon: string; label: string; value: string; accent?: boolean; accentColor?: string
+// ─── Stat Card ───────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string
+  value: string
+  accent?: boolean
 }) {
   return (
-    <div className="rounded-2xl p-4"
-      style={{
-        background: accent && accentColor ? `rgba(${accentColor === '#f97316' ? '249,115,22' : '59,130,246'},0.1)` : 'var(--bg-surface)',
-        border: `1px solid ${accent && accentColor ? `rgba(${accentColor === '#f97316' ? '249,115,22' : '59,130,246'},0.25)` : 'var(--border)'}`,
-      }}>
-      <div className="text-2xl mb-2">{icon}</div>
-      <div className="text-2xl font-bold" style={{ color: accent && accentColor ? accentColor : 'var(--text)' }}>
+    <div
+      className="card p-4"
+      style={accent ? { borderColor: 'rgba(94,106,210,0.2)' } : {}}
+    >
+      <div
+        className="text-lg font-semibold"
+        style={{ color: accent ? 'var(--accent)' : 'var(--text)' }}
+      >
         {value}
       </div>
-      <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{label}</div>
-    </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-        style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</span>
+      <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </div>
     </div>
   )
 }

@@ -63,12 +63,12 @@ export default function LeaderboardPage() {
         <div className="max-w-xl mx-auto px-4 py-6 pb-8 space-y-6">
 
           {/* Header */}
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <span>🏆</span> Leaderboard
+          <h1 className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
+            Leaderboard
           </h1>
 
-          {/* ── Podium (top 3 by XP) ──────────────────────────────────── */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+          {/* Podium (top 3 by XP) */}
+          <div className="card overflow-hidden">
             <div className="px-5 pt-5 pb-3">
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                 All-Time XP
@@ -76,15 +76,11 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="flex items-end justify-center gap-2 px-4 pb-6">
-              {/* 2nd place */}
               {podium[1] && <PodiumCard entry={podium[1]} place={2} onViewUser={handleViewUser} />}
-              {/* 1st place */}
               {podium[0] && <PodiumCard entry={podium[0]} place={1} onViewUser={handleViewUser} />}
-              {/* 3rd place */}
               {podium[2] && <PodiumCard entry={podium[2]} place={3} onViewUser={handleViewUser} />}
             </div>
 
-            {/* Everyone below top 3 */}
             {byXP.slice(3).length > 0 && (
               <div className="border-t divide-y" style={{ borderColor: 'var(--border)' }}>
                 {byXP.slice(3).map((u, i) => (
@@ -94,17 +90,17 @@ export default function LeaderboardPage() {
             )}
           </div>
 
-          {/* ── This Week ────────────────────────────────────────────────── */}
+          {/* This Week */}
           <RankSection
-            title="📅 This Week"
+            title="This Week"
             entries={byWeekly}
             getValue={(u) => `${u.weekly_sessions} session${u.weekly_sessions !== 1 ? 's' : ''}`}
             onViewUser={handleViewUser}
           />
 
-          {/* ── This Month ───────────────────────────────────────────────── */}
+          {/* This Month */}
           <RankSection
-            title="🗓️ This Month"
+            title="This Month"
             entries={byMonthly}
             getValue={(u) => `${u.monthly_sessions} session${u.monthly_sessions !== 1 ? 's' : ''}`}
             onViewUser={handleViewUser}
@@ -166,27 +162,26 @@ export default function LeaderboardPage() {
 }
 
 const PLACE_META = [
-  { medal: '🥇', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', height: 180 },
-  { medal: '🥈', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)', height: 156 },
-  { medal: '🥉', bg: 'rgba(180,120,40,0.08)',  border: 'rgba(180,120,40,0.2)',  height: 140 },
+  { label: '1st', border: 'rgba(245,158,11,0.3)', height: 180 },
+  { label: '2nd', border: 'rgba(148,163,184,0.2)', height: 156 },
+  { label: '3rd', border: 'rgba(180,120,40,0.2)',  height: 140 },
 ]
 
 function PodiumCard({ entry, place, onViewUser }: { entry: LeaderboardEntry; place: 1 | 2 | 3; onViewUser: (e: LeaderboardEntry) => void }) {
   const meta = PLACE_META[place - 1]
   const order = place === 1 ? 'order-2' : place === 2 ? 'order-1' : 'order-3'
   return (
-    <button className={`flex-1 max-w-[120px] ${order} rounded-2xl flex flex-col items-center pt-4 pb-3 px-2 transition-all hover:scale-105`}
-      style={{ background: meta.bg, border: `1px solid ${meta.border}`, height: meta.height, justifyContent: 'flex-end' }}
-      onClick={() => onViewUser(entry)}>
-      <div className="text-2xl mb-1">{meta.medal}</div>
+    <button className={`flex-1 max-w-[120px] ${order} rounded-lg flex flex-col items-center pt-4 pb-3 px-2 transition-all hover:scale-105`}
+      style={{ background: 'var(--bg-elevated)', border: `1px solid ${meta.border}`, height: meta.height, justifyContent: 'flex-end' }}>
+      <div className="text-xs font-semibold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{meta.label}</div>
       <Avatar username={entry.username} size="sm" avatarUrl={entry.avatar_url} />
       <div className="font-bold text-xs capitalize mt-1.5 truncate max-w-full text-center">{entry.username}</div>
       <div className="mt-1"><LevelBadge level={entry.level} size="sm" /></div>
-      <div className="mt-1 text-xs font-semibold" style={{ color: '#fbbf24' }}>
+      <div className="mt-1 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
         {entry.xp.toLocaleString()} XP
       </div>
       <div className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-        🔥{entry.current_streak}d
+        {entry.current_streak}d streak
       </div>
     </button>
   )
@@ -201,9 +196,9 @@ function RankSection({
   onViewUser: (e: LeaderboardEntry) => void
 }) {
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+    <div className="card overflow-hidden">
       <div className="px-5 pt-5 pb-3">
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
           {title}
         </h2>
       </div>
@@ -216,13 +211,17 @@ function RankSection({
   )
 }
 
-const MEDALS = ['🥇', '🥈', '🥉']
-
 function RankRow({ entry, rank, valueLabel, onViewUser }: { entry: LeaderboardEntry; rank: number; valueLabel: string; onViewUser: (e: LeaderboardEntry) => void }) {
   return (
     <div className="flex items-center gap-3 px-5 py-3.5">
-      <div className="text-lg w-7 text-center flex-shrink-0">
-        {rank <= 3 ? MEDALS[rank - 1] : <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>#{rank}</span>}
+      <div className="w-7 text-center flex-shrink-0">
+        {rank <= 3 ? (
+          <span className="text-xs font-semibold uppercase" style={{ color: 'var(--accent)' }}>
+            {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
+          </span>
+        ) : (
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>#{rank}</span>
+        )}
       </div>
       <Avatar username={entry.username} size="sm" avatarUrl={entry.avatar_url} />
       <div className="flex-1 min-w-0">
@@ -239,7 +238,7 @@ function RankRow({ entry, rank, valueLabel, onViewUser }: { entry: LeaderboardEn
       </div>
       <div className="flex flex-col items-end flex-shrink-0">
         <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{valueLabel}</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>🔥 {entry.current_streak}d</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{entry.current_streak}d streak</span>
       </div>
     </div>
   )

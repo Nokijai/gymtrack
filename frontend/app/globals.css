@@ -2,15 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────────────
+   GymTrack Design System — Linear-inspired dark theme
+   ───────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg-base:     #0b0b14;
-  --bg-surface:  #111119;
-  --bg-elevated: #16161f;
-  --border:      rgba(255,255,255,0.06);
-  --accent:      #3b82f6;
-  --accent-glow: rgba(59,130,246,0.25);
-  --text:        #f1f5f9;
-  --text-muted:  #8b95a5;
+  /* Backgrounds */
+  --bg-base: #090a0b;
+  --bg-surface: #0f1011;
+  --bg-elevated: #191a1b;
+  --bg-hover: rgba(255,255,255,0.04);
+  --bg-active: rgba(255,255,255,0.06);
+
+  /* Borders */
+  --border: rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-accent: rgba(94,106,210,0.2);
+
+  /* Text */
+  --text: #f7f8f8;
+  --text-secondary: #a0a5b0;
+  --text-muted: #6b7080;
+
+  /* Accent (Indigo) */
+  --accent: #5e6ad2;
+  --accent-hover: #7170ff;
+  --accent-subtle: rgba(94,106,210,0.12);
+
+  /* Status */
+  --green: #22a645;
+  --orange: #f59e0b;
+  --red: #ef4444;
+
+  /* Shadows (subtle, for dark surfaces) */
+  --shadow-sm: rgba(0,0,0,0.12) 0px 1px 2px;
+  --shadow-md: rgba(0,0,0,0.16) 0px 2px 4px;
+  --shadow-lg: rgba(0,0,0,0.24) 0px 4px 12px;
 }
 
 *, *::before, *::after {
@@ -21,74 +48,49 @@ html, body {
   overflow-x: hidden;
   background-color: var(--bg-base);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'SF Pro Display', sans-serif;
-  font-size: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+/* ─────────────────────────────────────────────────────────────────────
+   Scrollbar
+   ───────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { 
+  background: rgba(255,255,255,0.1); 
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { 
+  background: rgba(255,255,255,0.18); 
+}
 
-/* Smooth page transitions */
+/* ─────────────────────────────────────────────────────────────────────
+   Animations (minimal, no flashy effects)
+   ───────────────────────────────────────────────────────────────────── */
 .page-fade {
-  animation: pageFadeIn 0.2s ease-out;
+  animation: pageFadeIn 0.15s ease-out;
 }
 
 @keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* Timer pulse */
-@keyframes timerPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.timer-active {
-  animation: timerPulse 2s ease-in-out infinite;
-}
-
-/* XP glow */
-@keyframes xpGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(245,158,11,0.3); }
-  50% { box-shadow: 0 0 18px rgba(245,158,11,0.6); }
-}
-
-/* Progress bar shimmer */
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.progress-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--accent) 0%,
-    #60a5fa 50%,
-    var(--accent) 100%
-  );
-  background-size: 200% auto;
-  animation: shimmer 2s linear infinite;
-}
-
-/* Card glass effect */
-.card-glass {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-}
-
-/* Input focus ring */
-input:focus, textarea:focus, select:focus {
+/* ─────────────────────────────────────────────────────────────────────
+   Focus states (no glow, just subtle ring)
+   ───────────────────────────────────────────────────────────────────── */
+input:focus, textarea:focus, select:focus, button:focus-visible {
   outline: none;
+  box-shadow: 0 0 0 1px var(--border-accent);
 }
 
-/* Number input: remove arrows */
+/* ─────────────────────────────────────────────────────────────────────
+   Number input: remove arrows
+   ───────────────────────────────────────────────────────────────────── */
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -96,7 +98,94 @@ input[type=number]::-webkit-inner-spin-button {
 }
 input[type=number] { -moz-appearance: textfield; }
 
-/* Bottom nav safe area */
-.bottom-nav-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+/* ─────────────────────────────────────────────────────────────────────
+   Utility classes
+   ───────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+}
+.btn-ghost:hover { 
+  background: var(--bg-hover); 
+  color: var(--text);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover { 
+  background: var(--accent-hover); 
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--red);
+  border: none;
+}
+.btn-danger:hover { 
+  background: rgba(239,68,68,0.08); 
+}
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:hover {
+  border-color: rgba(255,255,255,0.08);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--border-accent);
+}
+
+.link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.link:hover { 
+  color: var(--text); 
+}
+.link-active { 
+  color: var(--accent); 
 }

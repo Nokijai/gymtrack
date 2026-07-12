@@ -16,8 +16,8 @@ interface SetRow {
   duration_min: string
   distance_km: string
   notes: string
-  rpe: string   // RPE 1-10 (optional)
-  rir: string   // Reps in Reserve (optional)
+  rpe: string
+  rir: string
 }
 
 interface NextTarget {
@@ -104,26 +104,23 @@ function DebriefModal({
       const r = await api.post(`/ai/debrief/${sessionId}`)
       setText(r.data.debrief_text)
     } catch {
-      setText('Great workout! Keep pushing — every session counts! 💪')
+      setText('Great workout. Keep pushing — every session counts.')
     }
     setDebriefPhase('show')
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 page-fade">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
       <div
-        className="relative rounded-3xl p-7 w-full max-w-sm space-y-5"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="relative card p-6 w-full max-w-sm space-y-5"
       >
-        {/* Icon + title */}
         <div className="text-center">
-          <div className="text-4xl mb-3">🤖</div>
-          <h2 className="text-lg font-bold mb-1">
+          <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text)' }}>
             {debriefPhase === 'ask'
-              ? 'Session Complete! 🎉'
+              ? 'Session Complete'
               : debriefPhase === 'loading'
-              ? 'Getting your debrief...'
+              ? 'Generating debrief...'
               : 'Coach Debrief'}
           </h2>
           {debriefPhase === 'ask' && (
@@ -133,23 +130,21 @@ function DebriefModal({
           )}
         </div>
 
-        {/* Loading skeleton */}
         {debriefPhase === 'loading' && (
-          <div className="space-y-2.5 py-1">
-            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '90%' }} />
-            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '75%' }} />
-            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '82%' }} />
-            <div className="h-3.5 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.08)', width: '60%' }} />
+          <div className="space-y-2 py-1">
+            <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '90%' }} />
+            <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '75%' }} />
+            <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '82%' }} />
+            <div className="h-3 rounded animate-pulse" style={{ background: 'var(--bg-hover)', width: '60%' }} />
           </div>
         )}
 
-        {/* AI response card */}
         {debriefPhase === 'show' && text && (
           <div
-            className="rounded-2xl px-4 py-4 text-sm leading-relaxed"
+            className="rounded-md px-4 py-3 text-sm leading-relaxed"
             style={{
               background: 'var(--bg-elevated)',
-              color: 'var(--text-muted)',
+              color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
             }}
           >
@@ -157,34 +152,30 @@ function DebriefModal({
           </div>
         )}
 
-        {/* Ask buttons */}
         {debriefPhase === 'ask' && (
           <div className="space-y-2 pt-1">
             <button
               onClick={handleYes}
-              className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
-              style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 6px 20px var(--accent-glow)' }}
+              className="btn btn-primary w-full py-2.5 font-semibold"
             >
-              Yes, coach me 💬
+              Yes, generate debrief
             </button>
             <button
               onClick={onSkip}
-              className="w-full rounded-2xl py-3 font-semibold text-sm transition-all active:scale-95"
-              style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              className="btn btn-ghost w-full py-2.5 text-sm"
+              style={{ border: '1px solid var(--border)' }}
             >
               Skip
             </button>
           </div>
         )}
 
-        {/* Got it button */}
         {debriefPhase === 'show' && (
           <button
             onClick={onClose}
-            className="w-full rounded-2xl py-3.5 font-bold transition-all active:scale-95"
-            style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 6px 20px var(--accent-glow)' }}
+            className="btn btn-primary w-full py-2.5 font-semibold"
           >
-            Got it! 💪
+            Done
           </button>
         )}
       </div>
@@ -197,26 +188,26 @@ function RPESelector({ value, onChange }: { value: string; onChange: (v: string)
   const selected = value ? parseInt(value) : null
   return (
     <div className="flex items-center gap-0.5 mt-1">
-      <span className="text-[9px] mr-1" style={{ color: 'var(--text-muted)' }}>RPE</span>
+      <span className="text-[9px] mr-1 font-medium" style={{ color: 'var(--text-muted)' }}>RPE</span>
       {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
         const isSelected = selected !== null && n <= selected
         const color = selected !== null && n <= selected
-          ? n <= 6 ? '#4ade80' : n <= 8 ? '#fbbf24' : '#f87171'
-          : 'rgba(255,255,255,0.12)'
+          ? n <= 6 ? 'var(--green)' : n <= 8 ? 'var(--orange)' : 'var(--red)'
+          : 'var(--bg-hover)'
         return (
           <button
             key={n}
             type="button"
             onClick={() => onChange(selected === n ? '' : String(n))}
-            className="w-4 h-4 rounded-full transition-all duration-100"
-            style={{ background: color, transform: selected === n ? 'scale(1.3)' : 'scale(1)' }}
+            className="w-3.5 h-3.5 rounded-sm transition-all duration-100"
+            style={{ background: color, opacity: isSelected ? 1 : 0.6 }}
             title={`RPE ${n}`}
           />
         )
       })}
       {selected && (
-        <span className="text-[9px] ml-1 font-bold"
-          style={{ color: selected <= 6 ? '#4ade80' : selected <= 8 ? '#fbbf24' : '#f87171' }}>
+        <span className="text-[9px] ml-1 font-semibold"
+          style={{ color: selected <= 6 ? 'var(--green)' : selected <= 8 ? 'var(--orange)' : 'var(--red)' }}>
           {selected}
         </span>
       )}
@@ -262,10 +253,8 @@ export default function LogPage() {
   const exercisesRef = useRef<ExerciseEntry[]>([])
   useEffect(() => { exercisesRef.current = exercises }, [exercises])
 
-  // Keep draftSessionIdRef in sync so callbacks always have latest value
   useEffect(() => { draftSessionIdRef.current = draftSessionId }, [draftSessionId])
 
-  // Persist draftSessionId to localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
@@ -292,9 +281,6 @@ export default function LogPage() {
             const res = await api.patch(`/sessions/${currentDraftId}`, payload)
             savedId = res.data.id
           } catch (e: any) {
-            // If the session was lost (e.g. DB wiped), discard the stale ID
-            // and create a fresh session. The backend PATCH also auto-recovers
-            // on 404, but this is a safety net for edge cases.
             if (e?.response?.status === 404) {
               setDraftSessionId(null)
               const res = await api.post('/sessions', payload)
@@ -357,7 +343,6 @@ export default function LogPage() {
           return await api.patch(`/sessions/${currentDraftId}`, payload)
         } catch (e: any) {
           if (e?.response?.status === 404) {
-            // Session was lost — discard stale ID and create fresh
             setDraftSessionId(null)
           }
           throw e
@@ -375,7 +360,6 @@ export default function LogPage() {
       } catch {}
       setDraftSessionId(null)
 
-      // Show debrief if session was created
       const sessionId = response.data?.id
       if (sessionId) {
         setDebriefSessionId(sessionId)
@@ -513,11 +497,9 @@ export default function LogPage() {
   // ── Exercise / Set mutations ──────────────────────────────────────────────
   async function addExercise(ex: SelectedExercise) {
     const entry = makeEntry(ex)
-    // Mark as loading target
     entry.loadingTarget = true
     setExercises((prev) => [...prev, entry])
 
-    // Fetch AI target in background
     try {
       const encodedName = encodeURIComponent(ex.nameEn || ex.nameCn)
       const res = await api.get(`/coach/next-targets/${encodedName}`)
@@ -592,18 +574,22 @@ export default function LogPage() {
       <AuthGuard>
         <div className="min-h-screen flex flex-col page-fade" style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
           <Nav />
-          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center text-5xl"
-              style={{ background: 'rgba(59,130,246,0.1)', border: '2px solid rgba(59,130,246,0.3)' }}>💪</div>
+          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border-accent)' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.5 6.5h11M6.5 17.5h11M3 10h18M3 14h18"/>
+                <rect x="2" y="6" width="20" height="12" rx="2"/>
+              </svg>
+            </div>
             <div className="text-center space-y-1">
-              <h1 className="text-2xl font-bold">Start Workout</h1>
+              <h1 className="text-xl font-semibold">Start Workout</h1>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Timer starts the moment you tap — add exercises as you go
+                Timer starts when you begin — add exercises as you go
               </p>
             </div>
             <button onClick={startWorkout}
-              className="w-full max-w-xs rounded-2xl font-bold text-lg py-5 transition-all active:scale-95"
-              style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 8px 32px var(--accent-glow)' }}>
+              className="btn btn-primary w-full max-w-xs py-3 text-sm font-semibold">
               Start Workout
             </button>
           </div>
@@ -629,11 +615,15 @@ export default function LogPage() {
             }}
           />
         )}
-        <div className="min-h-screen flex flex-col items-center justify-center gap-5 page-fade"
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 page-fade"
           style={{ background: 'var(--bg-base)', color: 'var(--text)' }}>
-          <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
-            style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.4)' }}>✓</div>
-          <h2 className="text-2xl font-bold text-green-400">Workout Saved!</h2>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(34,166,69,0.12)', border: '1px solid rgba(34,166,69,0.25)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--green)' }}>Workout Saved</h2>
         </div>
       </AuthGuard>
     )
@@ -647,36 +637,37 @@ export default function LogPage() {
 
         <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onSelect={addExercise} />
 
-        {/* Timer hero */}
+        {/* Timer */}
         <div className="flex flex-col items-center pt-6 pb-4 px-4">
-          <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[11px] font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
             Workout Time
           </div>
-          <div className="font-mono font-black tabular-nums leading-none timer-active"
-            style={{ fontSize: 'clamp(3.5rem, 12vw, 5.5rem)', color: 'var(--accent)', letterSpacing: '-0.02em' }}>
+          <div
+            className="font-mono font-semibold tabular-nums leading-none"
+            style={{ fontSize: 'clamp(3rem, 10vw, 4.5rem)', color: 'var(--text)', letterSpacing: '-0.02em' }}>
             {formatTime(elapsed)}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />Recording
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--green)' }} />
+            Recording
           </div>
-          {/* Auto-save status indicator */}
           {autoSaveStatus !== 'idle' && (
             <div
-              className="mt-1.5 text-[11px] font-medium transition-opacity"
+              className="mt-1.5 text-[11px] font-medium"
               style={{
-                color: autoSaveStatus === 'saved' ? '#4ade80'
+                color: autoSaveStatus === 'saved' ? 'var(--green)'
                      : autoSaveStatus === 'saving' ? 'var(--text-muted)'
-                     : '#f87171',
+                     : 'var(--red)',
               }}
             >
-              {autoSaveStatus === 'saving' && '⟳ Auto-saving…'}
-              {autoSaveStatus === 'saved' && '✓ Saved'}
-              {autoSaveStatus === 'error' && '⚠ Auto-save failed'}
+              {autoSaveStatus === 'saving' && 'Auto-saving...'}
+              {autoSaveStatus === 'saved' && 'Saved'}
+              {autoSaveStatus === 'error' && 'Auto-save failed'}
             </div>
           )}
         </div>
 
-        <div className="max-w-xl mx-auto px-4 pb-8 space-y-4">
+        <div className="max-w-xl mx-auto px-4 pb-8 space-y-3">
 
           {/* Exercise cards */}
           {exercises.map((ex, exIdx) => (
@@ -696,10 +687,10 @@ export default function LogPage() {
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="w-full rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-            style={{ background: 'var(--bg-surface)', border: '2px dashed var(--border)', color: 'var(--accent)' }}
+            className="btn btn-ghost w-full py-3 text-sm font-medium flex items-center justify-center gap-2"
+            style={{ border: '1px dashed var(--border)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
             Add Exercise
@@ -707,8 +698,8 @@ export default function LogPage() {
 
           {/* Error */}
           {mutation.isError && (
-            <div className="rounded-xl px-4 py-3 text-sm text-center"
-              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+            <div className="rounded-md px-4 py-3 text-sm text-center"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--red)' }}>
               Failed to save — please try again
             </div>
           )}
@@ -719,34 +710,33 @@ export default function LogPage() {
               disabled={phase === 'saving'}
               onMouseDown={startHold} onMouseUp={stopHold} onMouseLeave={stopHold}
               onTouchStart={startHold} onTouchEnd={stopHold}
-              className="relative w-full rounded-2xl overflow-hidden font-bold text-base py-5 min-h-[64px] transition-all"
+              className="relative w-full rounded-md overflow-hidden font-semibold text-sm py-4 min-h-[56px] transition-colors"
               style={{
-                background: phase === 'saving' ? 'rgba(255,255,255,0.06)' : isHolding ? '#16a34a' : '#22c55e',
-                color: phase === 'saving' ? 'var(--text-muted)' : '#fff',
+                background: phase === 'saving' ? 'var(--bg-elevated)' : isHolding ? 'var(--green)' : 'var(--bg-elevated)',
+                color: phase === 'saving' ? 'var(--text-muted)' : isHolding ? '#fff' : 'var(--text)',
+                border: `1px solid ${phase === 'saving' ? 'var(--border)' : isHolding ? 'transparent' : 'var(--border)'}`,
                 cursor: phase === 'saving' ? 'not-allowed' : 'pointer',
-                boxShadow: !isHolding && phase !== 'saving' ? '0 6px 24px rgba(34,197,94,0.3)' : 'none',
               }}
             >
               {isHolding && (
                 <span className="absolute inset-0 origin-left"
-                  style={{ background: 'rgba(255,255,255,0.25)', transform: `scaleX(${holdProgress / 100})`, transition: 'none' }} />
+                  style={{ background: 'rgba(255,255,255,0.15)', transform: `scaleX(${holdProgress / 100})`, transition: 'none' }} />
               )}
               <span className="relative z-10">
-                {phase === 'saving' ? '💾 Saving…' : isHolding ? `Hold ${holdCountdown}s…` : '🏁 Finish Workout'}
+                {phase === 'saving' ? 'Saving...' : isHolding ? `Hold ${holdCountdown}s` : 'Finish Workout'}
               </span>
             </button>
             {!isHolding && phase === 'active' && (
               <p className="text-center text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Hold for 5 seconds to save</p>
             )}
-            {/* Discard button */}
             {phase === 'active' && !isHolding && (
               <button
                 type="button"
                 onClick={handleDiscard}
-                className="w-full mt-3 rounded-2xl py-3 text-sm font-semibold transition-all active:scale-95"
-                style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                className="btn btn-danger w-full mt-2 py-2.5 text-sm"
+                style={{ border: '1px solid var(--border)' }}
               >
-                🗑 Discard Session
+                Discard Session
               </button>
             )}
           </div>
@@ -787,27 +777,24 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
   const activeFields = fields.filter((f) => entry[f.key])
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+    <div className="card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-base leading-tight">{entry.nameCn}</div>
+          <div className="font-semibold text-sm leading-tight">{entry.nameCn}</div>
           {entry.nameCn !== entry.nameEn && (
             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{entry.nameEn}</div>
           )}
         </div>
         <button onClick={() => setShowOptions(!showOptions)}
-          className="p-2 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)', background: showOptions ? 'var(--bg-elevated)' : 'transparent' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          className="btn btn-ghost p-1.5 rounded-md"
+          style={{ color: 'var(--text-muted)', background: showOptions ? 'var(--bg-hover)' : 'transparent' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
           </svg>
         </button>
-        <button onClick={onRemove} className="p-2 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <button onClick={onRemove} className="btn btn-ghost p-1.5 rounded-md btn-danger">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
           </svg>
         </button>
@@ -815,21 +802,23 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
 
       {/* AI Target hint */}
       {(entry.loadingTarget || entry.nextTarget) && (
-        <div className="px-4 py-2 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(59,130,246,0.04)' }}>
+        <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--border)', background: 'var(--accent-subtle)' }}>
           {entry.loadingTarget ? (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border border-t-transparent animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>AI calculating targets...</span>
+              <div className="w-3 h-3 rounded-full border animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Calculating targets...</span>
             </div>
           ) : entry.nextTarget?.weight ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--accent)' }}>🤖</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                AI suggests:{' '}
+                Suggested:{' '}
                 <span className="font-semibold" style={{ color: 'var(--accent)' }}>
-                  {entry.nextTarget.weight}kg × {entry.nextTarget.reps}
+                  {entry.nextTarget.weight}kg x {entry.nextTarget.reps}
                 </span>
-                {' '}based on last session
+                {' '}from last session
               </span>
             </div>
           ) : null}
@@ -838,10 +827,10 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
 
       {/* Field toggle options */}
       {showOptions && (
-        <div className="px-4 py-3 border-b flex flex-wrap gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+        <div className="px-4 py-2.5 flex flex-wrap gap-1.5" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
           {fields.map((f) => (
             <button key={f.key} onClick={() => onToggleField(f.key)}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+              className="text-xs px-2.5 py-1 rounded-md font-medium transition-colors"
               style={{
                 background: entry[f.key] ? 'var(--accent)' : 'var(--bg-surface)',
                 color: entry[f.key] ? '#fff' : 'var(--text-muted)',
@@ -854,13 +843,14 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
       )}
 
       {/* Sets table header */}
-      <div className="grid px-4 py-2" style={{
-        gridTemplateColumns: `24px ${activeFields.map(() => '1fr').join(' ')} 36px`,
+      <div className="grid px-4 py-1.5" style={{
+        gridTemplateColumns: `28px ${activeFields.map(() => '1fr').join(' ')} 28px`,
         borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-elevated)',
       }}>
-        <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>#</span>
+        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>#</span>
         {activeFields.map((f) => (
-          <span key={f.key} className="text-xs font-semibold text-center" style={{ color: 'var(--text-muted)' }}>
+          <span key={f.key} className="text-[11px] font-medium text-center" style={{ color: 'var(--text-muted)' }}>
             {f.label.split(' ')[0]}
           </span>
         ))}
@@ -868,22 +858,21 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
       </div>
 
       {/* Set rows */}
-      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+      <div>
         {entry.sets.map((set, setIdx) => (
-          <div key={set.id} className="px-4 pt-2 pb-1">
+          <div key={set.id} className="px-4 pt-2 pb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
             <div className="grid items-center gap-1" style={{
-              gridTemplateColumns: `24px ${activeFields.map(() => '1fr').join(' ')} 36px`,
+              gridTemplateColumns: `28px ${activeFields.map(() => '1fr').join(' ')} 28px`,
             }}>
               {/* Set number */}
-              <span className="text-xs font-bold text-center" style={{ color: 'var(--text-muted)' }}>{setIdx + 1}</span>
+              <span className="text-xs font-medium text-center" style={{ color: 'var(--text-muted)' }}>{setIdx + 1}</span>
 
               {/* Active field inputs */}
               {activeFields.map((f) => (
                 <input
                   key={f.key}
                   type={f.inputType}
-                  className="w-full rounded-lg px-2 py-2 text-sm text-center border min-h-[40px] focus:border-blue-500"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
+                  className="input text-sm text-center py-1.5 px-2"
                   placeholder={f.placeholder}
                   value={set[f.setField]}
                   onChange={(e) => onUpdateSet(set.id, f.setField, e.target.value)}
@@ -894,31 +883,27 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
 
               {/* Remove set */}
               <button onClick={() => onRemoveSet(set.id)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg mx-auto"
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                className="btn btn-ghost p-1 rounded-md mx-auto btn-danger">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
 
             {/* RPE + RIR row */}
-            <div className="flex items-center gap-3 ml-6 mb-1.5">
+            <div className="flex items-center gap-3 ml-7 mb-1">
               <RPESelector
                 value={set.rpe}
                 onChange={(v) => onUpdateSet(set.id, 'rpe', v)}
               />
               <div className="flex items-center gap-1">
-                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>RIR</span>
+                <span className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>RIR</span>
                 <input
                   type="number"
                   min="0"
                   max="10"
-                  className="w-10 rounded px-1 py-0.5 text-[11px] text-center border"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text)', borderColor: 'var(--border)' }}
-                  placeholder="—"
+                  className="input w-10 px-1 py-0.5 text-[11px] text-center"
+                  placeholder="--"
                   value={set.rir}
                   onChange={(e) => onUpdateSet(set.id, 'rir', e.target.value)}
                 />
@@ -929,11 +914,11 @@ function ExerciseCard({ entry, exIdx, onRemove, onToggleField, onAddSet, onRemov
       </div>
 
       {/* Add set */}
-      <div className="px-4 py-2.5">
+      <div className="px-4 py-2">
         <button onClick={onAddSet}
-          className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg"
-          style={{ color: 'var(--accent)', background: 'rgba(59,130,246,0.08)' }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          className="btn btn-ghost flex items-center gap-1.5 text-xs font-medium py-1 px-2.5 rounded-md"
+          style={{ color: 'var(--accent)' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           Add Set
